@@ -37,7 +37,7 @@ https://platform.openai.com/settings/organization/api-keys
    コマンドプロンプトで以下のコマンドを実行します。
 
    ```cmd
-   python llm-chat-demo.py
+   python llm-chat.py
    ```
 
 
