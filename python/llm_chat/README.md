@@ -24,15 +24,7 @@ https://platform.openai.com/settings/organization/api-keys
 
    https://www.python.org/downloads/
 
-3. **Pipのインストール**
-
-   Pythonのインストール後、通常pipは自動的にインストールされますが、もしインストールされていない場合は以下のURLからget-pip.pyをダウンロードし、次のコマンドを実行してください。
-
-   ```cmd
-   python get-pip.py
-   ```
-
-4. **OpenAIライブラリのインストール**
+3. **OpenAIライブラリのインストール**
 
    コマンドプロンプトを開き、以下のコマンドを実行します。
 
@@ -40,7 +32,7 @@ https://platform.openai.com/settings/organization/api-keys
    pip install openai
    ```
 
-5. **アプリの実行**
+4. **アプリの実行**
 
    コマンドプロンプトで以下のコマンドを実行します。
 
