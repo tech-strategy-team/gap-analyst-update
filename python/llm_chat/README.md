@@ -10,31 +10,42 @@ OpenAIのAPI keyを下記のURLで`Create new secret key"から取得する（�
 
 https://platform.openai.com/settings/organization/api-keys
 
-## コード実行
+## コード実行(Windows コマンドプロンプト)
 
 1. **OPENAIのAPIキーを環境変数に設定**
 
-   ```bash
-   export OPENAI_API_KEY='your-api-key'
+   ```cmd
+   set OPENAI_API_KEY=your-api-key
    ```
 
 2. **Pythonのインストール**
 
-   ```bash
-   sudo apt update
-   sudo apt install python3-pip
+   Windowsでは通常、Pythonは公式サイトからインストーラーをダウンロードしてインストールします。以下のURLからインストーラーをダウンロードしてください。
+
+   https://www.python.org/downloads/
+
+3. **Pipのインストール**
+
+   Pythonのインストール後、通常pipは自動的にインストールされますが、もしインストールされていない場合は以下のURLからget-pip.pyをダウンロードし、次のコマンドを実行してください。
+
+   ```cmd
+   python get-pip.py
    ```
 
-3. **OpenAIライブラリのインストール**
+4. **OpenAIライブラリのインストール**
 
-   ```bash
+   コマンドプロンプトを開き、以下のコマンドを実行します。
+
+   ```cmd
    pip install openai
    ```
 
-4. **アプリの実行**
+5. **アプリの実行**
 
-   ```bash
-   $ python3 llm-chat-demo.py
+   コマンドプロンプトで以下のコマンドを実行します。
+
+   ```cmd
+   python llm-chat-demo.py
    ```
 
 
