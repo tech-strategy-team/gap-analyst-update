@@ -6,3 +6,8 @@
 
 # 特定のディレクトリを無視する場合は先頭と末尾に/を付ける
 /bin/
+# すべてのvenvフォルダを無視する。
+**/venv/
+
+# movie-review-analysis 配下のAPIキーのファイルを無視
+movie-review-analysis/api-key.txt
