@@ -1,37 +1,30 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
-LLMとチャット形式でやり取りするスクリプト
+GPT‑API（OpenAI API）を利用したLLMとのチャットシステム
 機能：
 - プロンプトの設定
 - チャット履歴を参照したテキスト生成
-
-修正点：
-- APIキーをテキストファイルに保存せず、環境変数や手動入力を優先
-- LLM呼び出しのエラー処理を強化
+- エラーハンドリングの強化
 """
+
+import warnings
+# DeprecationWarning全体を無視する場合
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+# 必要に応じて、特定のメッセージに絞って無視することも可能です：
+# warnings.filterwarnings("ignore", message="Importing chat models from langchain is deprecated.")
 
 import os
 from typing import List, Dict, Any
 
-# AnthropicライブラリにMonkey Patchを適用
-import anthropic
+# OpenAIの例外を扱うためにopenaiパッケージをインポート
+import openai
 
-if not hasattr(anthropic.Anthropic, 'count_tokens'):
-    def dummy_count_tokens(self, text: str) -> int:
-        """
-        簡易的なトークン数のカウント関数（単語数をカウントする例）
-        
-        Args:
-            text (str): テキスト入力
-        
-        Returns:
-            int: トークン数（ここでは単語数）
-        """
-        return len(text.split())
-    anthropic.Anthropic.count_tokens = dummy_count_tokens
+# OpenAI向けのLLMクラスをLangChainからインポート
+from langchain.chat_models import ChatOpenAI
 
-# LangChainのインポート（新しい推奨パス）
-from langchain_anthropic import ChatAnthropic
-
+# LangChainのその他のモジュールのインポート
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.chat_history import InMemoryChatMessageHistory
@@ -40,13 +33,13 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 
 class ChatWithLLM:
-    """LLMとチャット形式でやり取りするクラス"""
+    """LLMとチャット形式でやり取りするクラス（GPT‑API版）"""
     
     def __init__(
         self, 
         api_key: str, 
-        model_name: str = "claude-3-7-sonnet-20250219", 
-        provider: str = "anthropic",
+        model_name: str = "gpt-3.5-turbo", 
+        provider: str = "openai",
         system_prompt: str = "あなたは親切で役立つAIアシスタントです。"
     ):
         """
@@ -54,8 +47,8 @@ class ChatWithLLM:
         
         Args:
             api_key: LLM APIキー（環境変数などで管理推奨）
-            model_name: 使用するモデル名
-            provider: LLMプロバイダー ("google" または "openai" など)
+            model_name: 使用するモデル名（例："gpt-3.5-turbo" または "gpt-4"）
+            provider: LLMプロバイダー ("openai" など)
             system_prompt: システムプロンプト
         """
         self.api_key = api_key
@@ -76,19 +69,16 @@ class ChatWithLLM:
     def _initialize_llm(self):
         """使用するLLMを初期化し、エラーをハンドリング"""
         try:
-            if self.provider.lower() == "anthropic":
-                self.llm = ChatAnthropic(
-                    model=self.model_name,
-                    anthropic_api_key=self.api_key,
+            if self.provider.lower() == "openai":
+                # OpenAIのChatOpenAIを初期化
+                self.llm = ChatOpenAI(
+                    model_name=self.model_name,      # 例："gpt-3.5-turbo" または "gpt-4"
+                    openai_api_key=self.api_key,
                 )
-            elif self.provider.lower() == "google":
-                raise NotImplementedError("Googleプロバイダーは現在実装されていません。")
-            elif self.provider.lower() == "openai":
-                raise NotImplementedError("OpenAIプロバイダーは現在実装されていません。")
             else:
                 raise ValueError(f"サポートされていないプロバイダー: {self.provider}")
         except Exception as e:
-            # 初期化で想定外のエラーが出た場合のハンドリング
+            # 初期化中の予期しないエラーをハンドリング
             print(f"LLMの初期化中にエラーが発生しました: {e}")
             self.llm = None
     
@@ -141,8 +131,8 @@ class ChatWithLLM:
                 config={"configurable": {"session_id": "default"}},
             )
             return response
-        except anthropic.APIError as e:
-            print(f"Anthropic APIでエラーが発生しました: {e}")
+        except openai.error.OpenAIError as e:
+            print(f"OpenAI APIでエラーが発生しました: {e}")
             return "APIとの通信でエラーが発生しました。時間をおいて再度お試しください。"
         except Exception as e:
             print(f"予期しないエラーが発生しました: {e}")
@@ -175,17 +165,17 @@ def main():
     """メイン関数"""
     print("LLMとチャットを開始します。終了するには 'exit' または 'quit' と入力してください。")
     
-    # APIキーは環境変数ANTHROPIC_API_KEYを推奨
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    # APIキーは環境変数OPENAI_API_KEYを推奨
+    api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         # 環境変数が設定されていなければ手動入力を促す
-        api_key = input("Anthropic API キーを入力してください: ")
+        api_key = input("OpenAI API キーを入力してください: ")
     
     system_prompt = input("システムプロンプトを入力してください（デフォルト: あなたは親切で役立つAIアシスタントです。）: ")
     if not system_prompt:
         system_prompt = "あなたは親切で役立つAIアシスタントです。"
     
-    # ChatWithLLMクラスを初期化
+    # ChatWithLLMクラスを初期化（デフォルトプロバイダーはopenai）
     chat_bot = ChatWithLLM(api_key=api_key, system_prompt=system_prompt)
     
     while True:
