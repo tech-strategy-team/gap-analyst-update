@@ -1,30 +1,8 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-GPT‑API（OpenAI API）を利用したLLMとのチャットシステム
-機能：
-- プロンプトの設定
-- チャット履歴を参照したテキスト生成
-- エラーハンドリングの強化
-"""
-
-import warnings
-# DeprecationWarning全体を無視する場合
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-
-# 必要に応じて、特定のメッセージに絞って無視することも可能です：
-# warnings.filterwarnings("ignore", message="Importing chat models from langchain is deprecated.")
-
 import os
+from dotenv import load_dotenv
 from typing import List, Dict, Any
-
-# OpenAIの例外を扱うためにopenaiパッケージをインポート
 import openai
-
-# OpenAI向けのLLMクラスをLangChainからインポート
-from langchain.chat_models import ChatOpenAI
-
-# LangChainのその他のモジュールのインポート
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.chat_history import InMemoryChatMessageHistory
@@ -34,11 +12,10 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 class ChatWithLLM:
     """LLMとチャット形式でやり取りするクラス（GPT‑API版）"""
-    
     def __init__(
         self, 
         api_key: str, 
-        model_name: str = "gpt-3.5-turbo", 
+        model_name: str = "gpt-4o", 
         provider: str = "openai",
         system_prompt: str = "あなたは親切で役立つAIアシスタントです。"
     ):
@@ -56,16 +33,9 @@ class ChatWithLLM:
         self.provider = provider
         self.system_prompt = system_prompt
         self.history = InMemoryChatMessageHistory()
-        
-        # LLMの初期化
-        self._initialize_llm()
-        
-        # プロンプトテンプレートの設定
-        self._setup_prompt_template()
-        
-        # チェーンの設定
-        self._setup_chain()
-    
+        self._initialize_llm() # LLMの初期化
+        self._setup_prompt_template() #プロンプトテンプレートの設定
+        self._setup_chain() # チェーンの設定
     def _initialize_llm(self):
         """使用するLLMを初期化し、エラーをハンドリング"""
         try:
@@ -89,7 +59,7 @@ class ChatWithLLM:
             ("placeholder", "{chat_history}"),
             ("human", "{input}")
         ])
-    
+
     def _setup_chain(self):
         """チェーンを設定"""
         chain = self.prompt_template | self.llm | StrOutputParser()
@@ -160,6 +130,10 @@ class ChatWithLLM:
         self.history.clear()
         print("チャット履歴をクリアしました。")
 
+
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
+print()
 
 def main():
     """メイン関数"""

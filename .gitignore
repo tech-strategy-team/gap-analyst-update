@@ -1,13 +1,8 @@
-# 特定の拡張子を無視する場合はどこにも/を付けない
-*.o
-
 # 特定のファイルを無視する場合は先頭に/を付ける
 /npm-debug.log
 
-# 特定のディレクトリを無視する場合は先頭と末尾に/を付ける
-/bin/
 # すべてのvenvフォルダを無視する。
 **/venv/
 
-# movie-review-analysis 配下のAPIキーのファイルを無視
-movie-review-analysis/api-key.txt
+# 環境変数ファイルを無視する
+.env
