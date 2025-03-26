@@ -133,7 +133,6 @@ class ChatWithLLM:
 
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
-print()
 
 def main():
     """メイン関数"""
