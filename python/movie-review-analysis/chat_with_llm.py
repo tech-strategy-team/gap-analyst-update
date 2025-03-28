@@ -142,10 +142,9 @@ def save_chat_log(chat_history: List[Dict[str, Any]]):
     Args:
         chat_history: 保存するチャット履歴
     """
-    # 現在の日付と時間を取得してファイル名を生成
-    now = datetime.datetime.now()
-    date_time = now.strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"chat_log_{date_time}.txt"
+    # 現在のタイムスタンプを取得してファイル名を生成
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"chat_log_{timestamp}.txt"
     
     try:
         with open(filename, "w", encoding="utf-8") as f:
