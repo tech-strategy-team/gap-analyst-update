@@ -1,4 +1,5 @@
 import os
+import datetime
 from dotenv import load_dotenv
 from typing import List, Dict, Any
 import openai
@@ -134,6 +135,31 @@ class ChatWithLLM:
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
 
+def save_chat_log(chat_history: List[Dict[str, Any]]):
+    """
+    チャット履歴をログファイルに保存
+    
+    Args:
+        chat_history: 保存するチャット履歴
+    """
+    # 現在の日付を取得してファイル名を生成
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    filename = f"chat_log_{today}.txt"
+    
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(f"===== チャットログ ({today}) =====\n\n")
+            for msg in chat_history:
+                role = (
+                    "システム" if msg["role"] == "system" 
+                    else "あなた" if msg["role"] == "user" 
+                    else "AI"
+                )
+                f.write(f"{role}: {msg['content']}\n\n")
+        print(f"チャットログを {filename} に保存しました。")
+    except Exception as e:
+        print(f"ログファイルの保存中にエラーが発生しました: {e}")
+
 def main():
     """メイン関数"""
     print("LLMとチャットを開始します。終了するには 'exit' または 'quit' と入力してください。")
@@ -156,6 +182,9 @@ def main():
         
         # 終了コマンド
         if user_input.lower() in ["exit", "quit", "終了"]:
+            # チャット履歴を取得してログファイルに保存
+            chat_history = chat_bot.get_chat_history()
+            save_chat_log(chat_history)
             print("チャットを終了します。")
             break
         
