@@ -29,5 +29,6 @@ jobs:
 
         - name: Check coverage
           run: |
-            coverage xml -i --rcfile=python/movie-review-analysis/.coveragerc
+            cd python/movie-review-analysis
+            coverage xml -i --rcfile=.coveragerc
             coverage report --fail-under=50
