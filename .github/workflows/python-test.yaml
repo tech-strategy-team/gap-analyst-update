@@ -29,7 +29,5 @@ jobs:
 
         - name: Check coverage
           run: |
-            tree
-            pip install coverage
             coverage xml -i --rcfile=python/movie-review-analysis/.coveragerc
             coverage report --fail-under=50
