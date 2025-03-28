@@ -150,11 +150,12 @@ def save_chat_log(chat_history: List[Dict[str, Any]]):
         with open(filename, "w", encoding="utf-8") as f:
             f.write(f"===== チャットログ ({today}) =====\n\n")
             for msg in chat_history:
-                role = (
-                    "システム" if msg["role"] == "system" 
-                    else "あなた" if msg["role"] == "user" 
-                    else "AI"
-                )
+                role_mapping = {
+                    "system": "システム",
+                    "user": "あなた",
+                    "assistant": "AI"
+                }
+                role = role_mapping.get(msg["role"], "不明") # デフォルト値を設定
                 f.write(f"{role}: {msg['content']}\n\n")
         print(f"チャットログを {filename} に保存しました。")
         print(f"ログファイルの保存中にエラーが発生しました: {type(e)} - {e}")
