@@ -157,8 +157,7 @@ def save_chat_log(chat_history: List[Dict[str, Any]]):
                 )
                 f.write(f"{role}: {msg['content']}\n\n")
         print(f"チャットログを {filename} に保存しました。")
-    except Exception as e:
-        print(f"ログファイルの保存中にエラーが発生しました: {e}")
+        print(f"ログファイルの保存中にエラーが発生しました: {type(e)} - {e}")
 
 def main():
     """メイン関数"""
