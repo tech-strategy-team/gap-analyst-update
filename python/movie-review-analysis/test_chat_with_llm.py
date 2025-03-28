@@ -3,6 +3,9 @@ import warnings  # 警告フィルタ用
 from unittest.mock import patch, MagicMock
 from chat_with_llm import ChatWithLLM
 
+# 定数としてテスト用APIキーを定義
+TEST_API_KEY = "test_api_key"
+
 # DeprecationWarningを無視
 warnings.filterwarnings(
     "ignore",
@@ -13,7 +16,7 @@ warnings.filterwarnings(
 class TestChatWithLLM(unittest.TestCase):
     def setUp(self):
         # テスト用のAPIキーとシステムプロンプトを設定
-        self.api_key = "test_api_key"
+        self.api_key = TEST_API_KEY
         self.system_prompt = "あなたは親切で役立つAIアシスタントです。"
         # ChatWithLLMインスタンスを初期化
         self.chat_bot = ChatWithLLM(api_key=self.api_key, system_prompt=self.system_prompt)
