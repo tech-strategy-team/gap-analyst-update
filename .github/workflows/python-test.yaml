@@ -25,10 +25,10 @@ jobs:
           run: |
             pip install pytest pytest-cov
             cd python/movie-review-analysis
-            pytest --cov --cov-report=xml
+            pytest --cov=. --cov-report=xml
 
         - name: Check coverage
           run: |
             pip install coverage
-            coverage xml -i
+            coverage xml -i --rcfile=python/movie-review-analysis/.coveragerc
             coverage report --fail-under=50
