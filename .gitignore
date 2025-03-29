@@ -8,4 +8,4 @@
 .env
 
 # ログを無視する
-**/chat_log_*.txt
+# **/chat_log_*.txt
