@@ -143,21 +143,22 @@ def save_chat_log(chat_history: List[Dict[str, Any]]):
         chat_history: 保存するチャット履歴
     """
     # 現在のタイムスタンプを取得してファイル名を生成
-    now = datetime.datetime.now()
-    timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"chat_log_{timestamp}.txt"
-    
+
     try:
         with open(filename, "w", encoding="utf-8") as f:
-            f.write(f"===== チャットログ ({now.strftime('%Y-%m-%d %H:%M:%S')}) =====\n\n")
+            # ヘッダーを書き込み
+            now = datetime.datetime.now()
+            header = f"===== チャットログ ({now.strftime('%Y-%m-%d %H:%M:%S')}) =====\n\n"
+            f.write(header)
+
+            # チャット履歴を書き込み
+            role_mapping = {"system": "システム", "user": "あなた", "assistant": "AI"}
             for msg in chat_history:
-                role_mapping = {
-                    "system": "システム",
-                    "user": "あなた",
-                    "assistant": "AI"
-                }
-                role = role_mapping.get(msg["role"], "不明") # デフォルト値を設定
+                role = role_mapping.get(msg["role"], "不明")
                 f.write(f"{role}: {msg['content']}\n\n")
+
         print(f"チャットログを {filename} に保存しました。")
     except Exception as e:
         print(f"ログファイルの保存中にエラーが発生しました: {type(e)} - {e}")
