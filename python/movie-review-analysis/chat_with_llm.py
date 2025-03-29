@@ -144,8 +144,11 @@ def save_chat_log(chat_history: List[Dict[str, Any]]):
     """
     # ログ用のディレクトリを作成（存在しない場合）
     log_dir = "logs"
-    if not os.path.exists(log_dir):
+    try:
         os.makedirs(log_dir)
+    except OSError as e:
+        print(f"ディレクトリ作成中にエラーが発生しました: {e}")
+        return  # または、エラー処理に応じた対応
         
     # 現在のタイムスタンプを取得してファイル名を生成
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
