@@ -9,3 +9,8 @@
 
 # ログを無視する
 **/chat_log_*.txt
+
+# pytestのキャッシュを無視する
+**/__pycache__/
+**/.coverage
+**/.pytest_cache/

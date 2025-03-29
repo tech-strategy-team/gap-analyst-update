@@ -1,5 +1,8 @@
 # Chat with LLM
 
+![](https://github.com/Hiralion/n-group/actions/workflows/python-test.yaml/badge.svg)
+
+
 1. モジュールのインストール
 
     ```console
