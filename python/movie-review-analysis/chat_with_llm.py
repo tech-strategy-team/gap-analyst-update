@@ -253,6 +253,12 @@ def main():
     
     if load_log == 'y':
         log_path = input("読み込むログファイルのパスを入力してください（例: chat_log_2025-03-28_19-19-46.txt）: ")
+        # ファイルパスの検証を追加
+        if not os.path.isfile(log_path):
+            print("無効なファイルパスです。")
+            loaded_messages = []
+        else:
+            loaded_messages = load_chat_log(log_path)
         loaded_messages = load_chat_log(log_path)
         if loaded_messages:
             print(f"チャットログを読み込みました。メッセージ数: {len(loaded_messages)}")
