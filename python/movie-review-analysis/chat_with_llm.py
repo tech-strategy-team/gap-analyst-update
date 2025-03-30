@@ -191,25 +191,28 @@ def load_chat_log(filepath: str) -> List[Dict[str, str]]:
     Returns:
         チャット履歴のリスト
     """
-    # スクリプトのディレクトリを取得
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    # 絶対パスでない場合は、相対パスとして処理
-    if not os.path.isabs(filepath):
-        # まず、指定されたパスをそのまま試す
-        if not os.path.exists(filepath):
-        if not os.path.isabs(filepath):
-            filepath = os.path.join(script_dir, filepath)
-            if not os.path.exists(filepath):
-                filepath = os.path.join(script_dir, "logs", os.path.basename(filepath))
-                if not os.path.exists(filepath):
-                    raise FileNotFoundError(f"ファイルが見つかりません: {filepath}")
-
-        # ファイルが存在する場合のみ処理を行う
-        try:
-            with open(filepath, "r", encoding="utf-8") as f:
-    
     try:
+        # スクリプトのディレクトリを取得
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # 絶対パスでない場合は、相対パスとして処理
+        if not os.path.isabs(filepath):
+            # まず、指定されたパスをそのまま試す
+            if not os.path.exists(filepath):
+                # 次に、スクリプトディレクトリからの相対パスを試す
+                filepath_from_script = os.path.join(script_dir, filepath)
+                if os.path.exists(filepath_from_script):
+                    filepath = filepath_from_script
+                else:
+                    # 最後に、logsディレクトリ内を確認
+                    filepath_in_logs = os.path.join(script_dir, "logs", os.path.basename(filepath))
+                    if os.path.exists(filepath_in_logs):
+                        filepath = filepath_in_logs
+                    else:
+                        print(f"ファイルが見つかりません: {filepath}")
+                        return []
+        
+        # ファイルを読み込む
         with open(filepath, "r", encoding="utf-8") as f:
             content = f.read()
         
@@ -233,7 +236,7 @@ def load_chat_log(filepath: str) -> List[Dict[str, str]]:
         return messages
     except Exception as e:
         print(f"ログファイルの読み込み中にエラーが発生しました: {e}")
-        raise  # 例外を再発生させる
+        return []  # エラーが発生した場合は空のリストを返す
 
 def main():
     """メイン関数"""
@@ -252,18 +255,43 @@ def main():
     loaded_messages = []
     
     if load_log == 'y':
-        log_path = input("読み込むログファイルのパスを入力してください（例: chat_log_2025-03-28_19-19-46.txt）: ")
-        # ファイルパスの検証を追加
-        if not os.path.isfile(log_path):
-            print("無効なファイルパスです。")
-            loaded_messages = []
+        # スクリプトのディレクトリを取得
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        logs_dir = os.path.join(script_dir, "logs")
+        
+        # logsディレクトリが存在するか確認
+        if not os.path.exists(logs_dir):
+            print("ログディレクトリが見つかりません。新規チャットを開始します。")
         else:
-            loaded_messages = load_chat_log(log_path)
-        loaded_messages = load_chat_log(log_path)
-        if loaded_messages:
-            print(f"チャットログを読み込みました。メッセージ数: {len(loaded_messages)}")
-        else:
-            print("指定されたファイルからチャット履歴を読み込めませんでした。新規チャットを開始します。")
+            # logsディレクトリ内のtxtファイルを取得
+            log_files = [f for f in os.listdir(logs_dir) if f.endswith('.txt')]
+            
+            if not log_files:
+                print("ログファイルが見つかりません。新規チャットを開始します。")
+            else:
+                # ファイルを日付順に並べ替え（新しい順）
+                log_files.sort(reverse=True)
+                
+                print("読み込むログファイルの番号を入力してください")
+                for i, file in enumerate(log_files, 1):
+                    print(f"{i}: {file}")
+                
+                # ユーザーの選択を取得
+                try:
+                    choice = int(input("番号: "))
+                    if 1 <= choice <= len(log_files):
+                        log_path = os.path.join(logs_dir, log_files[choice-1])
+                        loaded_messages = load_chat_log(log_path)
+                        if loaded_messages:
+                            print(f"チャットログを読み込みました。メッセージ数: {len(loaded_messages)}")
+                        else:
+                            print("指定されたファイルからチャット履歴を読み込めませんでした。新規チャットを開始します。")
+                    else:
+                        print("無効な番号です。新規チャットを開始します。")
+                        loaded_messages = []
+                except ValueError:
+                    print("無効な入力です。新規チャットを開始します。")
+                    loaded_messages = []
     
     if not loaded_messages:
         # 新規チャットの場合はシステムプロンプトを入力
