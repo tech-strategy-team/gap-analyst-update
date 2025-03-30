@@ -233,7 +233,7 @@ def load_chat_log(filepath: str) -> List[Dict[str, str]]:
         return messages
     except Exception as e:
         print(f"ログファイルの読み込み中にエラーが発生しました: {e}")
-        return []
+        raise  # 例外を再発生させる
 
 def main():
     """メイン関数"""
