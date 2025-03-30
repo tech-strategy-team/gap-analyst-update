@@ -198,18 +198,16 @@ def load_chat_log(filepath: str) -> List[Dict[str, str]]:
     if not os.path.isabs(filepath):
         # まず、指定されたパスをそのまま試す
         if not os.path.exists(filepath):
-            # 次に、スクリプトディレクトリからの相対パスを試す
-            filepath_from_script = os.path.join(script_dir, filepath)
-            if os.path.exists(filepath_from_script):
-                filepath = filepath_from_script
-            else:
-                # 最後に、logsディレクトリ内を確認
-                filepath_in_logs = os.path.join(script_dir, "logs", os.path.basename(filepath))
-                if os.path.exists(filepath_in_logs):
-                    filepath = filepath_in_logs
-                else:
-                    print(f"ファイルが見つかりません: {filepath}")
-                    return []
+        if not os.path.isabs(filepath):
+            filepath = os.path.join(script_dir, filepath)
+            if not os.path.exists(filepath):
+                filepath = os.path.join(script_dir, "logs", os.path.basename(filepath))
+                if not os.path.exists(filepath):
+                    raise FileNotFoundError(f"ファイルが見つかりません: {filepath}")
+
+        # ファイルが存在する場合のみ処理を行う
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
     
     try:
         with open(filepath, "r", encoding="utf-8") as f:
