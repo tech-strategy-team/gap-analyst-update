@@ -1,7 +1,8 @@
 import os
 import datetime
+import re
 from dotenv import load_dotenv
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 import openai
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -141,14 +142,20 @@ def save_chat_log(chat_history: List[Dict[str, Any]]):
     
     Args:
         chat_history: 保存するチャット履歴
+        
+    Returns:
+        保存したファイルのパス、または保存に失敗した場合はNone
     """
     # ログ用のディレクトリを作成（存在しない場合）
-    log_dir = "logs"
+    # カレントディレクトリからの相対パスでlogsディレクトリを指定
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    log_dir = os.path.join(script_dir, "logs")
+    
     try:
-        os.makedirs(log_dir)
+        os.makedirs(log_dir, exist_ok=True)
     except OSError as e:
         print(f"ディレクトリ作成中にエラーが発生しました: {e}")
-        return  # または、エラー処理に応じた対応
+        return None
         
     # 現在のタイムスタンプを取得してファイル名を生成
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -169,8 +176,67 @@ def save_chat_log(chat_history: List[Dict[str, Any]]):
                 f.write(f"{role}: {msg['content']}\n\n")
 
         print(f"チャットログを {filepath} に保存しました。")
+        return filepath
     except Exception as e:
         print(f"ログファイルの保存中にエラーが発生しました: {type(e)} - {e}")
+        return None
+
+def load_chat_log(filepath: str) -> List[Dict[str, str]]:
+    """
+    ログファイルからチャット履歴を読み込む
+    
+    Args:
+        filepath: ログファイルのパス
+        
+    Returns:
+        チャット履歴のリスト
+    """
+    try:
+        # スクリプトのディレクトリを取得
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # 絶対パスでない場合は、相対パスとして処理
+        if not os.path.isabs(filepath):
+            # まず、指定されたパスをそのまま試す
+            if not os.path.exists(filepath):
+                # 次に、スクリプトディレクトリからの相対パスを試す
+                filepath_from_script = os.path.join(script_dir, filepath)
+                if os.path.exists(filepath_from_script):
+                    filepath = filepath_from_script
+                else:
+                    # 最後に、logsディレクトリ内を確認
+                    filepath_in_logs = os.path.join(script_dir, "logs", os.path.basename(filepath))
+                    if os.path.exists(filepath_in_logs):
+                        filepath = filepath_in_logs
+                    else:
+                        print(f"ファイルが見つかりません: {filepath}")
+                        return []
+        
+        # ファイルを読み込む
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        # ヘッダー部分を除外
+        header_pattern = r"===== チャットログ \(.*?\) =====\n\n"
+        content = re.sub(header_pattern, "", content)
+        
+        # メッセージを解析
+        messages = []
+        
+        # メッセージのパターン: "役割: 内容" + 空行
+        message_pattern = r"(システム|あなた|AI): (.*?)(?:\n\n|$)"
+        matches = re.findall(message_pattern, content, re.DOTALL)
+        
+        role_mapping = {"システム": "system", "あなた": "user", "AI": "assistant"}
+        
+        for role_ja, content in matches:
+            role = role_mapping.get(role_ja, "unknown")
+            messages.append({"role": role, "content": content.strip()})
+        
+        return messages
+    except Exception as e:
+        print(f"ログファイルの読み込み中にエラーが発生しました: {e}")
+        return []  # エラーが発生した場合は空のリストを返す
 
 def main():
     """メイン関数"""
@@ -182,12 +248,74 @@ def main():
         # 環境変数が設定されていなければ手動入力を促す
         api_key = input("OpenAI API キーを入力してください: ")
     
-    system_prompt = input("システムプロンプトを入力してください（デフォルト: あなたは親切で役立つAIアシスタントです。）: ")
-    if not system_prompt:
-        system_prompt = "あなたは親切で役立つAIアシスタントです。"
+    # 過去のチャットログを読み込むか確認
+    load_log = input("過去のチャットログを読み込みますか？ (y/n): ").lower()
+    
+    system_prompt = "あなたは親切で役立つAIアシスタントです。"
+    loaded_messages = []
+    
+    if load_log == 'y':
+        # スクリプトのディレクトリを取得
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        logs_dir = os.path.join(script_dir, "logs")
+        
+        # logsディレクトリが存在するか確認
+        if not os.path.exists(logs_dir):
+            print("ログディレクトリが見つかりません。新規チャットを開始します。")
+        else:
+            # logsディレクトリ内のtxtファイルを取得
+            log_files = [f for f in os.listdir(logs_dir) if f.endswith('.txt')]
+            
+            if not log_files:
+                print("ログファイルが見つかりません。新規チャットを開始します。")
+            else:
+                # ファイルを日付順に並べ替え（新しい順）
+                log_files.sort(reverse=True)
+                
+                print("読み込むログファイルの番号を入力してください")
+                for i, file in enumerate(log_files, 1):
+                    print(f"{i}: {file}")
+                
+                # ユーザーの選択を取得
+                try:
+                    choice = int(input("番号: "))
+                    if 1 <= choice <= len(log_files):
+                        log_path = os.path.join(logs_dir, log_files[choice-1])
+                        loaded_messages = load_chat_log(log_path)
+                        if loaded_messages:
+                            print(f"チャットログを読み込みました。メッセージ数: {len(loaded_messages)}")
+                        else:
+                            print("指定されたファイルからチャット履歴を読み込めませんでした。新規チャットを開始します。")
+                    else:
+                        print("無効な番号です。新規チャットを開始します。")
+                        loaded_messages = []
+                except ValueError:
+                    print("無効な入力です。新規チャットを開始します。")
+                    loaded_messages = []
+    
+    if not loaded_messages:
+        # 新規チャットの場合はシステムプロンプトを入力
+        user_system_prompt = input("システムプロンプトを入力してください（デフォルト: あなたは親切で役立つAIアシスタントです。）: ")
+        if user_system_prompt:
+            system_prompt = user_system_prompt
     
     # ChatWithLLMクラスを初期化（デフォルトプロバイダーはopenai）
     chat_bot = ChatWithLLM(api_key=api_key, system_prompt=system_prompt)
+    
+    # 過去のチャット履歴を復元
+    if loaded_messages:
+        for msg in loaded_messages:
+            role = msg["role"]
+            content = msg["content"]
+            
+            if role == "user":
+                chat_bot.history.add_user_message(content)
+            elif role == "assistant":
+                chat_bot.history.add_ai_message(content)
+            elif role == "system":
+                chat_bot.history.add_message(SystemMessage(content=content))
+        
+        print("チャット履歴を復元しました。続きからチャットを開始します。")
     
     while True:
         user_input = input("\nあなた: ")
@@ -196,7 +324,9 @@ def main():
         if user_input.lower() in ["exit", "quit", "終了"]:
             # チャット履歴を取得してログファイルに保存
             chat_history = chat_bot.get_chat_history()
-            save_chat_log(chat_history)
+            log_path = save_chat_log(chat_history)
+            if log_path:
+                print(f"チャットログを保存しました: {log_path}")
             print("チャットを終了します。")
             break
         
@@ -231,9 +361,18 @@ def main():
             print("/system [プロンプト] - システムプロンプトを変更")
             print("/clear または /クリア - チャット履歴をクリア")
             print("/history または /履歴 - チャット履歴を表示")
+            print("/save または /保存 - 現在のチャット履歴を保存")
             print("/help または /ヘルプ - コマンド一覧を表示")
             print("exit, quit, または 終了 - チャットを終了")
             print("=======================\n")
+            continue
+            
+        # 保存コマンド
+        if user_input.lower() in ["/save", "/保存"]:
+            chat_history = chat_bot.get_chat_history()
+            log_path = save_chat_log(chat_history)
+            if log_path:
+                print(f"チャットログを保存しました: {log_path}")
             continue
         
         # LLMとチャット
