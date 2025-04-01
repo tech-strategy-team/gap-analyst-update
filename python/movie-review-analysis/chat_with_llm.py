@@ -238,6 +238,14 @@ def load_chat_log(filepath: str) -> List[Dict[str, str]]:
         print(f"ログファイルの読み込み中にエラーが発生しました: {e}")
         return []  # エラーが発生した場合は空のリストを返す
 
+def get_available_models():
+    """利用可能なGPTモデルのリストを返す"""
+    return {
+        "1": "gpt-4o",
+        "2": "o3-mini",
+        "3": "o1"
+    }
+
 def main():
     """メイン関数"""
     print("LLMとチャットを開始します。終了するには 'exit' または 'quit' と入力してください。")
@@ -247,6 +255,16 @@ def main():
     if not api_key:
         # 環境変数が設定されていなければ手動入力を促す
         api_key = input("OpenAI API キーを入力してください: ")
+    
+    # モデルを選択
+    available_models = get_available_models()
+    print("\n利用可能なモデルを選択してください:")
+    for key, model in available_models.items():
+        print(f"{key}: {model}")
+    
+    model_choice = input("モデル番号を入力してください (デフォルト: 2 - gpt-4o): ").strip()
+    model_name = available_models.get(model_choice, "gpt-4o")
+    print(f"選択されたモデル: {model_name}")
     
     # 過去のチャットログを読み込むか確認
     load_log = input("過去のチャットログを読み込みますか？ (y/n): ").lower()
@@ -300,7 +318,7 @@ def main():
             system_prompt = user_system_prompt
     
     # ChatWithLLMクラスを初期化（デフォルトプロバイダーはopenai）
-    chat_bot = ChatWithLLM(api_key=api_key, system_prompt=system_prompt)
+    chat_bot = ChatWithLLM(api_key=api_key, model_name=model_name, system_prompt=system_prompt)
     
     # 過去のチャット履歴を復元
     if loaded_messages:
@@ -359,6 +377,7 @@ def main():
         if user_input.lower() in ["/help", "/ヘルプ"]:
             print("\n===== コマンド一覧 =====")
             print("/system [プロンプト] - システムプロンプトを変更")
+            print("/model - モデルを変更")
             print("/clear または /クリア - チャット履歴をクリア")
             print("/history または /履歴 - チャット履歴を表示")
             print("/save または /保存 - 現在のチャット履歴を保存")
@@ -367,6 +386,37 @@ def main():
             print("=======================\n")
             continue
             
+        # モデル変更コマンド
+        if user_input.lower() == "/model":
+            available_models = get_available_models()
+            print("\n利用可能なモデルを選択してください:")
+            for key, model in available_models.items():
+                print(f"{key}: {model}")
+            
+            model_choice = input("モデル番号を入力してください: ").strip()
+            if model_choice in available_models:
+                new_model = available_models[model_choice]
+                # 新しいモデルで再初期化
+                chat_bot = ChatWithLLM(
+                    api_key=api_key, 
+                    model_name=new_model, 
+                    system_prompt=chat_bot.system_prompt
+                )
+                # 履歴を復元
+                history = chat_bot.get_chat_history()
+                for msg in history:
+                    if msg["role"] == "user":
+                        chat_bot.history.add_user_message(msg["content"])
+                    elif msg["role"] == "assistant":
+                        chat_bot.history.add_ai_message(msg["content"])
+                    elif msg["role"] == "system":
+                        chat_bot.history.add_message(SystemMessage(content=msg["content"]))
+                
+                print(f"モデルを {new_model} に変更しました。")
+            else:
+                print("無効なモデル番号です。")
+            continue
+        
         # 保存コマンド
         if user_input.lower() in ["/save", "/保存"]:
             chat_history = chat_bot.get_chat_history()
