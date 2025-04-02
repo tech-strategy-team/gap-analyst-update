@@ -4,6 +4,8 @@ import re
 from dotenv import load_dotenv
 from typing import List, Dict, Any, Optional, Tuple
 import openai
+from prompt_toolkit import prompt
+from prompt_toolkit.history import InMemoryHistory
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -254,7 +256,7 @@ def main():
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         # 環境変数が設定されていなければ手動入力を促す
-        api_key = input("OpenAI API キーを入力してください: ")
+        api_key = prompt("OpenAI API キーを入力してください: ")
     
     # モデルを選択
     available_models = get_available_models()
@@ -262,12 +264,15 @@ def main():
     for key, model in available_models.items():
         print(f"{key}: {model}")
     
-    model_choice = input("モデル番号を入力してください (デフォルト: 1 - gpt-4o): ").strip()
-    model_name = available_models.get(model_choice, "gpt-4o")
+    model_choice = prompt("モデル番号を入力してください (デフォルト: 1 - gpt-4o): ").strip()
+    if model_choice:
+        model_name = available_models.get(model_choice, "gpt-4o")
+    else:
+        model_name = "gpt-4o"
     print(f"選択されたモデル: {model_name}")
     
     # 過去のチャットログを読み込むか確認
-    load_log = input("過去のチャットログを読み込みますか？ (y/n): ").lower()
+    load_log = prompt("過去のチャットログを読み込みますか？ (y/n): ").lower()
     
     system_prompt = "あなたは親切で役立つAIアシスタントです。"
     loaded_messages = []
@@ -296,7 +301,7 @@ def main():
                 
                 # ユーザーの選択を取得
                 try:
-                    choice = int(input("番号: "))
+                    choice = int(prompt("番号: "))
                     if 1 <= choice <= len(log_files):
                         log_path = os.path.join(logs_dir, log_files[choice-1])
                         loaded_messages = load_chat_log(log_path)
@@ -313,7 +318,7 @@ def main():
     
     if not loaded_messages:
         # 新規チャットの場合はシステムプロンプトを入力
-        user_system_prompt = input("システムプロンプトを入力してください（デフォルト: あなたは親切で役立つAIアシスタントです。）: ")
+        user_system_prompt = prompt("システムプロンプトを入力してください（デフォルト: あなたは親切で役立つAIアシスタントです。）: ")
         if user_system_prompt:
             system_prompt = user_system_prompt
     
@@ -336,7 +341,9 @@ def main():
         print("チャット履歴を復元しました。続きからチャットを開始します。")
     
     while True:
-        user_input = input("\nあなた: ")
+        # 入力履歴を管理するためのオブジェクト
+        input_history = InMemoryHistory()
+        user_input = prompt("\nあなた: ", history=input_history)
         
         # 終了コマンド
         if user_input.lower() in ["exit", "quit", "終了"]:
@@ -393,7 +400,7 @@ def main():
             for key, model in available_models.items():
                 print(f"{key}: {model}")
             
-            model_choice = input("モデル番号を入力してください: ").strip()
+            model_choice = prompt("モデル番号を入力してください: ").strip()
             if model_choice in available_models:
                 new_model = available_models[model_choice]
                 # 新しいモデルで再初期化
@@ -407,7 +414,6 @@ def main():
                 except Exception as e:
                     print(f"モデルの初期化に失敗しました: {e}")
                     continue
-                )
                 # 履歴を復元
                 history = chat_bot.get_chat_history()
                 for msg in history:
