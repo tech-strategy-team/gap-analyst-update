@@ -397,10 +397,16 @@ def main():
             if model_choice in available_models:
                 new_model = available_models[model_choice]
                 # 新しいモデルで再初期化
-                chat_bot = ChatWithLLM(
-                    api_key=api_key, 
-                    model_name=new_model, 
-                    system_prompt=chat_bot.system_prompt
+                try:
+                    # 新しいモデルで再初期化
+                    chat_bot = ChatWithLLM(
+                        api_key=api_key, 
+                        model_name=new_model, 
+                        system_prompt=chat_bot.system_prompt
+                    )
+                except Exception as e:
+                    print(f"モデルの初期化に失敗しました: {e}")
+                    continue
                 )
                 # 履歴を復元
                 history = chat_bot.get_chat_history()
