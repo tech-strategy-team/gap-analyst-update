@@ -262,7 +262,7 @@ def main():
     for key, model in available_models.items():
         print(f"{key}: {model}")
     
-    model_choice = input("モデル番号を入力してください (デフォルト: 2 - gpt-4o): ").strip()
+    model_choice = input("モデル番号を入力してください (デフォルト: 1 - gpt-4o): ").strip()
     model_name = available_models.get(model_choice, "gpt-4o")
     print(f"選択されたモデル: {model_name}")
     
