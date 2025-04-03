@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'python/movie-review-analysis/**'
+  workflow_dispatch:
+
 
 jobs:
 
