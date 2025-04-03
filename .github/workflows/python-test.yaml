@@ -54,7 +54,7 @@ jobs:
           uses: actions/upload-artifact@v4
           with:
             name: coverage-report
-            path: python/movie-review-analysis/.coverage
+            path: python/movie-review-analysis/
 
     coverage:
         runs-on: ubuntu-latest
