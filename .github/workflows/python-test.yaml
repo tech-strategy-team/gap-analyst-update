@@ -49,11 +49,12 @@ jobs:
             pip install pytest pytest-cov
             cd python/movie-review-analysis
             pytest --cov=chat_with_llm --cov-report=xml
+            ls -la
         - name: Upload coverage report
           uses: actions/upload-artifact@v4
           with:
             name: coverage-report
-            path: .coverage
+            path: python/movie-review-analysis/.coverage
 
     coverage:
         runs-on: ubuntu-latest
@@ -63,7 +64,7 @@ jobs:
           uses: actions/download-artifact@v4
           with:
             name: coverage-report
-            path: .coverage
+            path: ./
 
         - name: Set up Python
           uses: actions/setup-python@v2
