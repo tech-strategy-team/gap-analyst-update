@@ -2,6 +2,32 @@
 
 ![](https://github.com/Hiralion/n-group/actions/workflows/python-test.yaml/badge.svg)
 
+## 動作
+
+```mermaid
+sequenceDiagram
+    participant User as ユーザー
+    participant Script as chat_with_llm.py
+    participant LLM as LLM (API)
+
+    User->>Script: python3 chat_with_llm.py
+    Script->>User: LLMとチャットを開始します。終了するには 'exit' または 'quit' と入力してください。
+    User->>Script: システムプロンプトを入力
+    Script->>LLM: システムプロンプトを設定
+    LLM-->>Script: 設定完了
+
+    loop チャットのやり取り
+        User->>Script: あなたは誰？
+        Script->>LLM: ユーザー入力を送信
+        LLM-->>Script: 私はAIアシスタントです...
+        Script->>User: 私はAIアシスタントです...
+    end
+
+    User->>Script: exit
+    Script->>User: チャットを終了します。
+```
+
+## 手順
 
 1. モジュールのインストール
 
