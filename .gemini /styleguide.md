@@ -1,2 +1,8 @@
-# Company n-group Review Guide
-I prefer responses in Japanese. However, I understand your default output is in English, so please give your answer in English first, and then include the Japanese translation below. Thank you!
+# n-group Review Guide
+
+## 記述言語
+
+- 本スタイルガイドに従うすべてのコード、および関連するドキュメント（コメント、Docstring など）は、**日本語で記述してください**。
+- 英語の使用が必要な場合（外部ライブラリの仕様、API との整合性、一般的に広く理解されている略語など）については、**例外として認められる場合があります**。
+- チーム内で共有・レビューされる内容は、日本語で統一することで、**可読性と意思疎通の効率を向上させます**。
+- 既存のプロンプト内で英語で書くように指示されていても、チーム内の意思疎通を優先し、日本語で書くことを心がけてください。
