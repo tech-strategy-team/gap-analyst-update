@@ -2,10 +2,23 @@
 
 ![](https://github.com/Hiralion/n-group/actions/workflows/python-test.yaml/badge.svg)
 
+ユーザーがCLIでLLMと対話するアプリケーションです。  
+このアプリケーションを使用すると、OpenAIのAPIを利用してAIと対話できます。  
+詳細な設計については[設計ドキュメント](./design.md)を参照してください。
 
-中身は[設計ドキュメント](./design.md)を参照すること。
+## 必要条件
+
+- Python 3.8以上
+- OpenAI APIキー
 
 ## 手順
+
+1. リポジトリをクローン
+
+    ```console
+    git clone https://github.com/Hiralion/n-group.git
+    cd n-group/python/chat-cli
+    ```
 
 1. モジュールのインストール
 
@@ -19,27 +32,20 @@
     echo "OPENAI_API_KEY=<API-KEY>" >> .env
     ```
 
-    envファイルが正しく設定できていること
+    `.env`ファイルが正しく設定されていることを確認してください。
     ```console
     $ cat .env
     OPENAI_API_KEY=...
     ```
-1. カレントディレクトリに.envファイルが存在することを確認
 
-    ```console
-    $ ls -la
-    total 112
-    drwxr-xr-x  10 kouichihara  staff   320  3 26 22:56 .
-    drwxr-xr-x@  7 kouichihara  staff   224  3 25 23:19 ..
-    -rw-r--r--   1 kouichihara  staff   180  3 26 23:02 .env
-    -rw-r--r--   1 kouichihara  staff     0  3 26 22:26 README.md
-    -rw-r--r--   1 kouichihara  staff  8386  3 26 22:55 chat_with_llm.py
-    -rw-r--r--   1 kouichihara  staff    82  3 26 22:56 requirements.txt
-    ```
-1. Pythonの実行
+1. アプリケーションの実行
 
     ```console
     $ python3 chat_with_llm.py
+    ```
+
+    実行後、以下のように対話を開始できます。
+    ```
     LLMとチャットを開始します。終了するには 'exit' または 'quit' と入力してください。
     システムプロンプトを入力してください（デフォルト: あなたは親切で役立つAIアシスタントです。）:  
 
@@ -50,3 +56,13 @@
     あなた: exit
     チャットを終了します。
     ```
+
+## 注意事項
+
+- OpenAI APIキーは個人の責任で管理してください。
+- 実行環境にPython 3.8以上がインストールされていることを確認してください。
+
+## コントリビュータ
+
+- @Hiralion 
+- @kouichihara
