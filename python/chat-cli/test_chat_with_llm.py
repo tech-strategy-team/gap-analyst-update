@@ -52,6 +52,55 @@ class TestChatWithLLM(unittest.TestCase):
         self.chat_bot.clear_history()
         self.assertEqual(len(self.chat_bot.history.messages), 0)  # 履歴が空であることを確認
 
+    @patch("chat_with_llm.ChatOpenAI")
+    @patch("chat_with_llm.ChatWithLLM")  # ChatWithLLMをモック化
+    def test_chat(self, mock_chat_with_llm, mock_chat_openai):
+        # ChatOpenAIのモックを設定
+        mock_instance = MagicMock()
+        mock_instance.invoke.return_value = "こんにちは！"
+        mock_chat_openai.return_value = mock_instance
+
+        # ChatWithLLMのモックを設定
+        mock_chat_bot = MagicMock()
+        mock_chat_bot.chat.return_value = "こんにちは！"
+        mock_chat_with_llm.return_value = mock_chat_bot
+
+        # ユーザー入力に対するレスポンスをテスト
+        user_input = "こんにちは"
+        response = mock_chat_bot.chat(user_input)
+        self.assertEqual(response, "こんにちは！")
+        mock_chat_bot.chat.assert_called_once_with(user_input)
+
+    @patch("chat_with_llm.save_chat_log")
+    def test_save_chat_log(self, mock_save_chat_log):
+        # チャット履歴を保存する機能をテスト
+        self.chat_bot.history.add_user_message("こんにちは")
+        self.chat_bot.history.add_ai_message("こんにちは！")
+        chat_history = self.chat_bot.get_chat_history()
+
+        # モックされたsave_chat_logを呼び出し
+        mock_save_chat_log.return_value = "/path/to/log.txt"
+        log_path = mock_save_chat_log(chat_history)
+        self.assertEqual(log_path, "/path/to/log.txt")
+        mock_save_chat_log.assert_called_once_with(chat_history)
+
+    @patch("chat_with_llm.load_chat_log")
+    def test_load_chat_log(self, mock_load_chat_log):
+        # ログファイルからチャット履歴を読み込む機能をテスト
+        mock_load_chat_log.return_value = [
+            {"role": "user", "content": "こんにちは"},
+            {"role": "assistant", "content": "こんにちは！"}
+        ]
+        filepath = "/path/to/log.txt"
+        loaded_history = mock_load_chat_log(filepath)
+
+        self.assertEqual(len(loaded_history), 2)
+        self.assertEqual(loaded_history[0]["role"], "user")
+        self.assertEqual(loaded_history[0]["content"], "こんにちは")
+        self.assertEqual(loaded_history[1]["role"], "assistant")
+        self.assertEqual(loaded_history[1]["content"], "こんにちは！")
+        mock_load_chat_log.assert_called_once_with(filepath)
+
 if __name__ == "__main__":
     # テストを実行
     unittest.main()

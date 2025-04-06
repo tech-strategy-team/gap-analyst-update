@@ -105,6 +105,9 @@ class ChatWithLLM:
                 config={"configurable": {"session_id": "default"}},
             )
             return response
+        except openai.error.AuthenticationError as e:
+            print(f"認証エラーが発生しました: {e}")
+            return "APIキーが無効です。正しいAPIキーを設定してください。"
         except openai.error.OpenAIError as e:
             print(f"OpenAI APIでエラーが発生しました: {e}")
             return "APIとの通信でエラーが発生しました。時間をおいて再度お試しください。"
