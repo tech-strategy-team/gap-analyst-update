@@ -2,6 +2,7 @@
 
 ![](https://github.com/Hiralion/n-group/actions/workflows/python-test.yaml/badge.svg)
 
+
 ユーザーがCLIでLLMと対話するアプリケーションです。  
 このアプリケーションを使用すると、OpenAIのAPIを利用してAIと対話できます。  
 詳細な設計については[設計ドキュメント](./design.md)を参照してください。
@@ -32,6 +33,7 @@
     echo "OPENAI_API_KEY=<API-KEY>" >> .env
     ```
 
+
     `.env`ファイルが正しく設定されていることを確認してください。
     ```console
     $ cat .env
@@ -56,6 +58,7 @@
     あなた: exit
     チャットを終了します。
     ```
+
 
 ## 注意事項
 

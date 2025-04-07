@@ -1,6 +1,9 @@
 import os
 import datetime
 import re
+import sys
+import time
+import threading
 from dotenv import load_dotenv
 from typing import List, Dict, Any, Optional, Tuple
 import openai
@@ -12,6 +15,45 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.chat_history import InMemoryChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
+
+class LoadingIndicator:
+    """APIレスポンス待ち中に表示するローディングインジケータークラス"""
+    def __init__(self, message="APIからの応答を待っています"):
+        self.message = message
+        self.is_running = False
+        self.thread = None
+        self.animation_chars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+        # 別のアニメーションスタイルのオプション:
+        # self.animation_chars = ["-", "\\", "|", "/"]
+        # self.animation_chars = [".", "..", "...", "...."]
+        # self.animation_chars = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█", "▇", "▆", "▅", "▄", "▃", "▂"]
+
+    def animate(self):
+        """アニメーションを表示するメソッド"""
+        i = 0
+        while self.is_running:
+            animation_char = self.animation_chars[i % len(self.animation_chars)]
+            sys.stdout.write(f"\r{self.message}  {animation_char}")
+            sys.stdout.flush()
+            time.sleep(0.1)
+            i += 1
+        # アニメーション終了時に行をクリア
+        sys.stdout.write("\r" + " " * (len(self.message) + len(self.animation_chars[0]) + 2) + "\r")
+        sys.stdout.flush()
+
+    def start(self):
+        """ローディングアニメーションを開始"""
+        self.is_running = True
+        self.thread = threading.Thread(target=self.animate)
+        self.thread.daemon = True
+        self.thread.start()
+
+    def stop(self):
+        """ローディングアニメーションを停止"""
+        self.is_running = False
+        if self.thread:
+            self.thread.join()
 
 
 class ChatWithLLM:
@@ -99,19 +141,31 @@ class ChatWithLLM:
         if not self.llm:
             return "LLMが初期化されていないため、応答できません。"
         
+        # ローディングインジケーターを初期化
+        loading = LoadingIndicator(f"応答を待っています")
+        
         try:
+            # ローディングアニメーションを開始
+            loading.start()
+            
+            # APIリクエストを実行
             response = self.chain_with_history.invoke(
                 {"input": user_input},
                 config={"configurable": {"session_id": "default"}},
             )
+            
+            # ローディングアニメーションを停止
+            loading.stop()
+            
             return response
-        except openai.error.AuthenticationError as e:
-            print(f"認証エラーが発生しました: {e}")
-            return "APIキーが無効です。正しいAPIキーを設定してください。"
         except openai.error.OpenAIError as e:
+            # エラー発生時もローディングアニメーションを停止
+            loading.stop()
             print(f"OpenAI APIでエラーが発生しました: {e}")
             return "APIとの通信でエラーが発生しました。時間をおいて再度お試しください。"
         except Exception as e:
+            # エラー発生時もローディングアニメーションを停止
+            loading.stop()
             print(f"予期しないエラーが発生しました: {e}")
             return "予期しないエラーが発生しました。"
     
