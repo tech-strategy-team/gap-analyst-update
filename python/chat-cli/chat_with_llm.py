@@ -34,12 +34,12 @@ class LoadingIndicator:
         i = 0
         while self.is_running:
             animation_char = self.animation_chars[i % len(self.animation_chars)]
-            sys.stdout.write(f"\r{self.message} {animation_char}")
+            sys.stdout.write(f"\r{self.message}  {animation_char}")
             sys.stdout.flush()
             time.sleep(0.1)
             i += 1
         # アニメーション終了時に行をクリア
-        sys.stdout.write("\r" + " " * (len(self.message) + 10) + "\r")
+        sys.stdout.write("\r" + " " * (len(self.message) + len(self.animation_chars[0]) + 2) + "\r")
         sys.stdout.flush()
 
     def start(self):
