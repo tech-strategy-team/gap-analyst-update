@@ -2,7 +2,7 @@ name: Python Tests
 on:
   pull_request:
     paths:
-      - 'python/movie-review-analysis/**'
+      - 'python/chat-cli/**'
   workflow_dispatch:
 
 jobs:
@@ -21,11 +21,11 @@ jobs:
         - name: Install dependencies
           run: |
             python -m pip install --upgrade pip
-            pip install -r python/movie-review-analysis/requirements.txt
+            pip install -r python/chat-cli/requirements.txt
     
         - name: Run Python executable check
           run: |
-            cd python/movie-review-analysis
+            cd python/chat-cli
             python -m py_compile chat_with_llm.py
 
     pytest:
@@ -42,10 +42,10 @@ jobs:
         - name: Install dependencies
           run: |
             python -m pip install --upgrade pip
-            pip install -r python/movie-review-analysis/requirements.txt
+            pip install -r python/chat-cli/requirements.txt
     
         - name: Run tests
           run: |
             pip install pytest pytest-cov
-            cd python/movie-review-analysis
+            cd python/chat-cli
             pytest --cov=chat_with_llm --cov-report=xml
