@@ -142,7 +142,7 @@ class ChatWithLLM:
             return "LLMが初期化されていないため、応答できません。"
         
         # ローディングインジケーターを初期化
-        loading = LoadingIndicator(f"「{user_input[:20]}{'...' if len(user_input) > 20 else ''}」の応答を待っています")
+        loading = LoadingIndicator(f"応答を待っています")
         
         try:
             # ローディングアニメーションを開始
