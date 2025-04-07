@@ -1,0 +1,449 @@
+import os
+import datetime
+import re
+from dotenv import load_dotenv
+from typing import List, Dict, Any, Optional, Tuple
+import openai
+from prompt_toolkit import prompt
+from prompt_toolkit.history import InMemoryHistory
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.chat_history import InMemoryChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+
+
+class ChatWithLLM:
+    """LLMとチャット形式でやり取りするクラス（GPT‑API版）"""
+    def __init__(
+        self, 
+        api_key: str, 
+        model_name: str = "gpt-4o", 
+        provider: str = "openai",
+        system_prompt: str = "あなたは親切で役立つAIアシスタントです。"
+    ):
+        """
+        初期化メソッド
+        
+        Args:
+            api_key: LLM APIキー（環境変数などで管理推奨）
+            model_name: 使用するモデル名（例："gpt-3.5-turbo" または "gpt-4"）
+            provider: LLMプロバイダー ("openai" など)
+            system_prompt: システムプロンプト
+        """
+        self.api_key = api_key
+        self.model_name = model_name
+        self.provider = provider
+        self.system_prompt = system_prompt
+        self.history = InMemoryChatMessageHistory()
+        self._initialize_llm() # LLMの初期化
+        self._setup_prompt_template() #プロンプトテンプレートの設定
+        self._setup_chain() # チェーンの設定
+    def _initialize_llm(self):
+        """使用するLLMを初期化し、エラーをハンドリング"""
+        try:
+            if self.provider.lower() == "openai":
+                # OpenAIのChatOpenAIを初期化
+                self.llm = ChatOpenAI(
+                    model_name=self.model_name,      # 例："gpt-3.5-turbo" または "gpt-4"
+                    openai_api_key=self.api_key,
+                )
+            else:
+                raise ValueError(f"サポートされていないプロバイダー: {self.provider}")
+        except Exception as e:
+            # 初期化中の予期しないエラーをハンドリング
+            print(f"LLMの初期化中にエラーが発生しました: {e}")
+            self.llm = None
+    
+    def _setup_prompt_template(self):
+        """プロンプトテンプレートを設定"""
+        self.prompt_template = ChatPromptTemplate.from_messages([
+            ("system", self.system_prompt),
+            ("placeholder", "{chat_history}"),
+            ("human", "{input}")
+        ])
+
+    def _setup_chain(self):
+        """チェーンを設定"""
+        chain = self.prompt_template | self.llm | StrOutputParser()
+        self.chain_with_history = RunnableWithMessageHistory(
+            chain,
+            lambda session_id: self.history,
+            input_messages_key="input",
+            history_messages_key="chat_history",
+        )
+    
+    def update_system_prompt(self, new_system_prompt: str):
+        """
+        システムプロンプトを更新
+        
+        Args:
+            new_system_prompt: 新しいシステムプロンプト
+        """
+        self.system_prompt = new_system_prompt
+        self._setup_prompt_template()
+        self._setup_chain()
+        print(f"システムプロンプトを更新しました: {new_system_prompt}")
+    
+    def chat(self, user_input: str) -> str:
+        """
+        ユーザー入力に対するレスポンスを生成
+        
+        Args:
+            user_input: ユーザーの入力テキスト
+            
+        Returns:
+            LLMからのレスポンス
+        """
+        if not self.llm:
+            return "LLMが初期化されていないため、応答できません。"
+        
+        try:
+            response = self.chain_with_history.invoke(
+                {"input": user_input},
+                config={"configurable": {"session_id": "default"}},
+            )
+            return response
+        except openai.error.AuthenticationError as e:
+            print(f"認証エラーが発生しました: {e}")
+            return "APIキーが無効です。正しいAPIキーを設定してください。"
+        except openai.error.OpenAIError as e:
+            print(f"OpenAI APIでエラーが発生しました: {e}")
+            return "APIとの通信でエラーが発生しました。時間をおいて再度お試しください。"
+        except Exception as e:
+            print(f"予期しないエラーが発生しました: {e}")
+            return "予期しないエラーが発生しました。"
+    
+    def get_chat_history(self) -> List[Dict[str, Any]]:
+        """
+        チャット履歴を取得
+        
+        Returns:
+            チャット履歴のリスト
+        """
+        history = []
+        for message in self.history.messages:
+            if isinstance(message, HumanMessage):
+                history.append({"role": "user", "content": message.content})
+            elif isinstance(message, AIMessage):
+                history.append({"role": "assistant", "content": message.content})
+            elif isinstance(message, SystemMessage):
+                history.append({"role": "system", "content": message.content})
+        return history
+    
+    def clear_history(self):
+        """チャット履歴をクリア"""
+        self.history.clear()
+        print("チャット履歴をクリアしました。")
+
+
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
+
+def save_chat_log(chat_history: List[Dict[str, Any]]):
+    """
+    チャット履歴をログファイルに保存
+    
+    Args:
+        chat_history: 保存するチャット履歴
+        
+    Returns:
+        保存したファイルのパス、または保存に失敗した場合はNone
+    """
+    # ログ用のディレクトリを作成（存在しない場合）
+    # カレントディレクトリからの相対パスでlogsディレクトリを指定
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    log_dir = os.path.join(script_dir, "logs")
+    
+    try:
+        os.makedirs(log_dir, exist_ok=True)
+    except OSError as e:
+        print(f"ディレクトリ作成中にエラーが発生しました: {e}")
+        return None
+        
+    # 現在のタイムスタンプを取得してファイル名を生成
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"chat_log_{timestamp}.txt"
+    filepath = os.path.join(log_dir, filename)
+
+    try:
+        with open(filepath, "w", encoding="utf-8") as f:
+            # ヘッダーを書き込み
+            now = datetime.datetime.now()
+            header = f"===== チャットログ ({now.strftime('%Y-%m-%d %H:%M:%S')}) =====\n\n"
+            f.write(header)
+
+            # チャット履歴を書き込み
+            role_mapping = {"system": "システム", "user": "あなた", "assistant": "AI"}
+            for msg in chat_history:
+                role = role_mapping.get(msg["role"], "不明")
+                f.write(f"{role}: {msg['content']}\n\n")
+
+        print(f"チャットログを {filepath} に保存しました。")
+        return filepath
+    except Exception as e:
+        print(f"ログファイルの保存中にエラーが発生しました: {type(e)} - {e}")
+        return None
+
+def load_chat_log(filepath: str) -> List[Dict[str, str]]:
+    """
+    ログファイルからチャット履歴を読み込む
+    
+    Args:
+        filepath: ログファイルのパス
+        
+    Returns:
+        チャット履歴のリスト
+    """
+    try:
+        # スクリプトのディレクトリを取得
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # 絶対パスでない場合は、相対パスとして処理
+        if not os.path.isabs(filepath):
+            # まず、指定されたパスをそのまま試す
+            if not os.path.exists(filepath):
+                # 次に、スクリプトディレクトリからの相対パスを試す
+                filepath_from_script = os.path.join(script_dir, filepath)
+                if os.path.exists(filepath_from_script):
+                    filepath = filepath_from_script
+                else:
+                    # 最後に、logsディレクトリ内を確認
+                    filepath_in_logs = os.path.join(script_dir, "logs", os.path.basename(filepath))
+                    if os.path.exists(filepath_in_logs):
+                        filepath = filepath_in_logs
+                    else:
+                        print(f"ファイルが見つかりません: {filepath}")
+                        return []
+        
+        # ファイルを読み込む
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        # ヘッダー部分を除外
+        header_pattern = r"===== チャットログ \(.*?\) =====\n\n"
+        content = re.sub(header_pattern, "", content)
+        
+        # メッセージを解析
+        messages = []
+        
+        # メッセージのパターン: "役割: 内容" + 空行
+        message_pattern = r"(システム|あなた|AI): (.*?)(?:\n\n|$)"
+        matches = re.findall(message_pattern, content, re.DOTALL)
+        
+        role_mapping = {"システム": "system", "あなた": "user", "AI": "assistant"}
+        
+        for role_ja, content in matches:
+            role = role_mapping.get(role_ja, "unknown")
+            messages.append({"role": role, "content": content.strip()})
+        
+        return messages
+    except Exception as e:
+        print(f"ログファイルの読み込み中にエラーが発生しました: {e}")
+        return []  # エラーが発生した場合は空のリストを返す
+
+def get_available_models():
+    """利用可能なGPTモデルのリストを返す"""
+    return {
+        "1": "gpt-4o",
+        "2": "o3-mini",
+        "3": "o1"
+    }
+
+def main():
+    """メイン関数"""
+    print("LLMとチャットを開始します。終了するには 'exit' または 'quit' と入力してください。")
+    
+    # APIキーは環境変数OPENAI_API_KEYを推奨
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        # 環境変数が設定されていなければ手動入力を促す
+        api_key = prompt("OpenAI API キーを入力してください: ")
+    
+    # モデルを選択
+    available_models = get_available_models()
+    print("\n利用可能なモデルを選択してください:")
+    for key, model in available_models.items():
+        print(f"{key}: {model}")
+    
+    model_choice = prompt("モデル番号を入力してください (デフォルト: 1 - gpt-4o): ").strip()
+    if model_choice:
+        model_name = available_models.get(model_choice, "gpt-4o")
+    else:
+        model_name = "gpt-4o"
+    print(f"選択されたモデル: {model_name}")
+    
+    # 過去のチャットログを読み込むか確認
+    load_log = prompt("過去のチャットログを読み込みますか？ (y/n): ").lower()
+    
+    system_prompt = "あなたは親切で役立つAIアシスタントです。"
+    loaded_messages = []
+    
+    if load_log == 'y':
+        # スクリプトのディレクトリを取得
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        logs_dir = os.path.join(script_dir, "logs")
+        
+        # logsディレクトリが存在するか確認
+        if not os.path.exists(logs_dir):
+            print("ログディレクトリが見つかりません。新規チャットを開始します。")
+        else:
+            # logsディレクトリ内のtxtファイルを取得
+            log_files = [f for f in os.listdir(logs_dir) if f.endswith('.txt')]
+            
+            if not log_files:
+                print("ログファイルが見つかりません。新規チャットを開始します。")
+            else:
+                # ファイルを日付順に並べ替え（新しい順）
+                log_files.sort(reverse=True)
+                
+                print("読み込むログファイルの番号を入力してください")
+                for i, file in enumerate(log_files, 1):
+                    print(f"{i}: {file}")
+                
+                # ユーザーの選択を取得
+                try:
+                    choice = int(prompt("番号: "))
+                    if 1 <= choice <= len(log_files):
+                        log_path = os.path.join(logs_dir, log_files[choice-1])
+                        loaded_messages = load_chat_log(log_path)
+                        if loaded_messages:
+                            print(f"チャットログを読み込みました。メッセージ数: {len(loaded_messages)}")
+                        else:
+                            print("指定されたファイルからチャット履歴を読み込めませんでした。新規チャットを開始します。")
+                    else:
+                        print("無効な番号です。新規チャットを開始します。")
+                        loaded_messages = []
+                except ValueError:
+                    print("無効な入力です。新規チャットを開始します。")
+                    loaded_messages = []
+    
+    if not loaded_messages:
+        # 新規チャットの場合はシステムプロンプトを入力
+        user_system_prompt = prompt("システムプロンプトを入力してください（デフォルト: あなたは親切で役立つAIアシスタントです。）: ")
+        if user_system_prompt:
+            system_prompt = user_system_prompt
+    
+    # ChatWithLLMクラスを初期化（デフォルトプロバイダーはopenai）
+    chat_bot = ChatWithLLM(api_key=api_key, model_name=model_name, system_prompt=system_prompt)
+    
+    # 過去のチャット履歴を復元
+    if loaded_messages:
+        for msg in loaded_messages:
+            role = msg["role"]
+            content = msg["content"]
+            
+            if role == "user":
+                chat_bot.history.add_user_message(content)
+            elif role == "assistant":
+                chat_bot.history.add_ai_message(content)
+            elif role == "system":
+                chat_bot.history.add_message(SystemMessage(content=content))
+        
+        print("チャット履歴を復元しました。続きからチャットを開始します。")
+    
+    while True:
+        # 入力履歴を管理するためのオブジェクト
+        input_history = InMemoryHistory()
+        user_input = prompt("\nあなた: ", history=input_history)
+        
+        # 終了コマンド
+        if user_input.lower() in ["exit", "quit", "終了"]:
+            # チャット履歴を取得してログファイルに保存
+            chat_history = chat_bot.get_chat_history()
+            log_path = save_chat_log(chat_history)
+            if log_path:
+                print(f"チャットログを保存しました: {log_path}")
+            print("チャットを終了します。")
+            break
+        
+        # システムプロンプト変更コマンド
+        if user_input.startswith("/system "):
+            new_system_prompt = user_input[8:].strip()
+            chat_bot.update_system_prompt(new_system_prompt)
+            continue
+        
+        # 履歴クリアコマンド
+        if user_input.lower() in ["/clear", "/クリア"]:
+            chat_bot.clear_history()
+            continue
+        
+        # 履歴表示コマンド
+        if user_input.lower() in ["/history", "/履歴"]:
+            history = chat_bot.get_chat_history()
+            print("\n===== チャット履歴 =====")
+            for msg in history:
+                role = (
+                    "システム" if msg["role"] == "system" 
+                    else "あなた" if msg["role"] == "user" 
+                    else "AI"
+                )
+                print(f"{role}: {msg['content']}")
+            print("=======================\n")
+            continue
+        
+        # ヘルプコマンド
+        if user_input.lower() in ["/help", "/ヘルプ"]:
+            print("\n===== コマンド一覧 =====")
+            print("/system [プロンプト] - システムプロンプトを変更")
+            print("/model - モデルを変更")
+            print("/clear または /クリア - チャット履歴をクリア")
+            print("/history または /履歴 - チャット履歴を表示")
+            print("/save または /保存 - 現在のチャット履歴を保存")
+            print("/help または /ヘルプ - コマンド一覧を表示")
+            print("exit, quit, または 終了 - チャットを終了")
+            print("=======================\n")
+            continue
+            
+        # モデル変更コマンド
+        if user_input.lower() == "/model":
+            available_models = get_available_models()
+            print("\n利用可能なモデルを選択してください:")
+            for key, model in available_models.items():
+                print(f"{key}: {model}")
+            
+            model_choice = prompt("モデル番号を入力してください: ").strip()
+            if model_choice in available_models:
+                new_model = available_models[model_choice]
+                # 新しいモデルで再初期化
+                try:
+                    # 新しいモデルで再初期化
+                    chat_bot = ChatWithLLM(
+                        api_key=api_key, 
+                        model_name=new_model, 
+                        system_prompt=chat_bot.system_prompt
+                    )
+                except Exception as e:
+                    print(f"モデルの初期化に失敗しました: {e}")
+                    continue
+                # 履歴を復元
+                history = chat_bot.get_chat_history()
+                for msg in history:
+                    if msg["role"] == "user":
+                        chat_bot.history.add_user_message(msg["content"])
+                    elif msg["role"] == "assistant":
+                        chat_bot.history.add_ai_message(msg["content"])
+                    elif msg["role"] == "system":
+                        chat_bot.history.add_message(SystemMessage(content=msg["content"]))
+                
+                print(f"モデルを {new_model} に変更しました。")
+            else:
+                print("無効なモデル番号です。")
+            continue
+        
+        # 保存コマンド
+        if user_input.lower() in ["/save", "/保存"]:
+            chat_history = chat_bot.get_chat_history()
+            log_path = save_chat_log(chat_history)
+            if log_path:
+                print(f"チャットログを保存しました: {log_path}")
+            continue
+        
+        # LLMとチャット
+        response = chat_bot.chat(user_input)
+        print(f"\nAI: {response}")
+
+
+if __name__ == "__main__":
+    main()

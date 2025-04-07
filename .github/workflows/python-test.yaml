@@ -3,11 +3,12 @@ on:
   pull_request:
     paths:
       - 'python/movie-review-analysis/**'
+      - 'python/chat-cli/**'
   workflow_dispatch:
 
 jobs:
 
-    py-compile:
+    py-compile-movie-review:
         runs-on: ubuntu-latest
         steps:
         - name: Checkout code
@@ -28,7 +29,7 @@ jobs:
             cd python/movie-review-analysis
             python -m py_compile chat_with_llm.py
 
-    pytest:
+    pytest-movie-review:
         runs-on: ubuntu-latest
         steps:
         - name: Checkout code
@@ -48,4 +49,47 @@ jobs:
           run: |
             pip install pytest pytest-cov
             cd python/movie-review-analysis
+            pytest --cov=chat_with_llm --cov-report=xml
+
+    py-compile-chat-cli:
+        runs-on: ubuntu-latest
+        steps:
+        - name: Checkout code
+          uses: actions/checkout@v2
+    
+        - name: Set up Python
+          uses: actions/setup-python@v2
+          with:
+            python-version: '3.13'
+    
+        - name: Install dependencies
+          run: |
+            python -m pip install --upgrade pip
+            pip install -r python/chat-cli/requirements.txt
+    
+        - name: Run Python executable check
+          run: |
+            cd python/chat-cli
+            python -m py_compile chat_with_llm.py
+
+    pytest-chat-cli:
+        runs-on: ubuntu-latest
+        steps:
+        - name: Checkout code
+          uses: actions/checkout@v2
+    
+        - name: Set up Python
+          uses: actions/setup-python@v2
+          with:
+            python-version: '3.13'
+    
+        - name: Install dependencies
+          run: |
+            python -m pip install --upgrade pip
+            pip install -r python/chat-cli/requirements.txt
+    
+        - name: Run tests
+          run: |
+            pip install pytest pytest-cov
+            cd python/chat-cli
             pytest --cov=chat_with_llm --cov-report=xml
