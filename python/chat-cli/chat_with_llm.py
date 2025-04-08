@@ -4,8 +4,9 @@ import re
 import sys
 import time
 import threading
+import mimetypes
 from dotenv import load_dotenv
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Union
 import openai
 from prompt_toolkit import prompt
 from prompt_toolkit.history import InMemoryHistory
@@ -200,6 +201,63 @@ class ChatWithLLM:
         """チャット履歴をクリア"""
         self.history.clear()
         print("チャット履歴をクリアしました。")
+        
+    def add_file_to_context(self, file_path: str) -> Tuple[bool, str]:
+        """
+        ファイルの内容をLLMのコンテキストに追加
+        
+        Args:
+            file_path: 追加するファイルのパス
+            
+        Returns:
+            成功したかどうかのブール値とメッセージのタプル
+        """
+        try:
+            # ファイルの存在確認
+            if not os.path.exists(file_path):
+                return False, f"ファイルが見つかりません: {file_path}"
+            
+            # ファイルサイズの確認（大きすぎるファイルは処理しない）
+            file_size = os.path.getsize(file_path)
+            if file_size > 10 * 1024 * 1024:  # 10MB以上のファイルは拒否
+                return False, f"ファイルサイズが大きすぎます（10MB以下にしてください）: {file_path}"
+            
+            # MIMEタイプの確認
+            mime_type, _ = mimetypes.guess_type(file_path)
+            
+            # テキストファイルかどうかの確認
+            is_text_file = mime_type and mime_type.startswith('text/')
+            
+            # 一般的なテキストファイル拡張子のリスト
+            text_extensions = ['.txt', '.md', '.py', '.js', '.html', '.css', '.json', '.xml', '.csv', '.log', '.sh', '.bat', '.c', '.cpp', '.h', '.java', '.rb', '.php', '.ts', '.tsx', '.jsx']
+            
+            # 拡張子の確認
+            _, ext = os.path.splitext(file_path)
+            if not is_text_file and ext.lower() not in text_extensions:
+                return False, f"サポートされていないファイル形式です: {file_path}"
+            
+            # ファイルの内容を読み取り
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    file_content = f.read()
+            except UnicodeDecodeError:
+                # UTF-8でデコードできない場合は、他のエンコーディングを試す
+                try:
+                    with open(file_path, 'r', encoding='shift-jis') as f:
+                        file_content = f.read()
+                except UnicodeDecodeError:
+                    return False, f"ファイルのエンコーディングを認識できません: {file_path}"
+            
+            # ファイル名を取得
+            file_name = os.path.basename(file_path)
+            
+            # ファイルの内容をユーザーメッセージとして追加
+            file_message = f"以下は「{file_name}」の内容です：\n\n```{ext[1:]}\n{file_content}\n```"
+            self.history.add_user_message(file_message)
+            
+            return True, f"ファイル「{file_name}」を追加しました。"
+        except Exception as e:
+            return False, f"ファイル追加中にエラーが発生しました: {e}"
 
 
 load_dotenv()
@@ -455,6 +513,7 @@ def main():
             print("/clear または /クリア - チャット履歴をクリア")
             print("/history または /履歴 - チャット履歴を表示")
             print("/save または /保存 - 現在のチャット履歴を保存")
+            print("/add [ファイルパス1] [ファイルパス2] ... - ファイルをLLMに渡す")
             print("/help または /ヘルプ - コマンド一覧を表示")
             print("exit, quit, または 終了 - チャットを終了")
             print("=======================\n")
@@ -502,6 +561,31 @@ def main():
             log_path = save_chat_log(chat_history)
             if log_path:
                 print(f"チャットログを保存しました: {log_path}")
+            continue
+            
+        # ファイル追加コマンド
+        if user_input.lower().startswith("/add "):
+            # コマンドからファイルパスを抽出
+            file_paths = user_input[5:].strip().split()
+            
+            if not file_paths:
+                print("ファイルパスを指定してください。例: /add file1.txt file2.py")
+                continue
+                
+            # 各ファイルを処理
+            success_count = 0
+            for file_path in file_paths:
+                success, message = chat_bot.add_file_to_context(file_path)
+                print(message)
+                if success:
+                    success_count += 1
+            
+            # 追加結果のサマリーを表示
+            if success_count > 0:
+                if len(file_paths) == 1:
+                    print("ファイルをLLMに渡しました。質問や指示を入力してください。")
+                else:
+                    print(f"{success_count}/{len(file_paths)}個のファイルをLLMに渡しました。質問や指示を入力してください。")
             continue
         
         # LLMとチャット
