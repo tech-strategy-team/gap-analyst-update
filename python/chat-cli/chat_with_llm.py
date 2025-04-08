@@ -34,13 +34,21 @@ class LoadingIndicator:
         i = 0
         while self.is_running:
             animation_char = self.animation_chars[i % len(self.animation_chars)]
+            # カーソルを行の先頭に移動し、メッセージとアニメーションを表示
             sys.stdout.write(f"\r{self.message}  {animation_char}")
             sys.stdout.flush()
             time.sleep(0.1)
             i += 1
-        # アニメーション終了時に行をクリア
-        sys.stdout.write("\r" + " " * (len(self.message) + len(self.animation_chars[0]) + 2) + "\r")
-        sys.stdout.flush()
+        # アニメーション終了時に行をクリアする
+        self._clear_line()
+
+    def _clear_line(self):
+        """現在の行を完全にクリアする（ANSI エスケープシーケンスを使用）。
+
+        ANSI エスケープシーケンスを使用して行を完全にクリアします。
+        \033[2K: 現在の行を完全にクリア
+        \r: カーソルを行の先頭に移動
+        """
 
     def start(self):
         """ローディングアニメーションを開始"""
@@ -54,6 +62,8 @@ class LoadingIndicator:
         self.is_running = False
         if self.thread:
             self.thread.join()
+        # スレッド終了後、確実に行をクリア
+        self._clear_line()
 
 
 class ChatWithLLM:
@@ -159,12 +169,12 @@ class ChatWithLLM:
             
             return response
         except openai.error.OpenAIError as e:
-            # エラー発生時もローディングアニメーションを停止
+        # エラー発生時もローディングアニメーションを停止
             loading.stop()
             print(f"OpenAI APIでエラーが発生しました: {e}")
             return "APIとの通信でエラーが発生しました。時間をおいて再度お試しください。"
         except Exception as e:
-            # エラー発生時もローディングアニメーションを停止
+        # エラー発生時もローディングアニメーションを停止
             loading.stop()
             print(f"予期しないエラーが発生しました: {e}")
             return "予期しないエラーが発生しました。"
