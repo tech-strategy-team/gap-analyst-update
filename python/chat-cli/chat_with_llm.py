@@ -62,6 +62,8 @@ class LoadingIndicator:
         self.is_running = False
         if self.thread:
             self.thread.join()
+        # スレッド終了後、確実に行をクリア
+        self._clear_line()
 
 
 class ChatWithLLM:
@@ -165,22 +167,15 @@ class ChatWithLLM:
             # ローディングアニメーションを停止
             loading.stop()
             
-            # 念のため、もう一度行をクリア
-            print("\033[2K\r", end="")
-            
             return response
         except openai.error.OpenAIError as e:
         # エラー発生時もローディングアニメーションを停止
             loading.stop()
-            # 念のため、もう一度行をクリア
-            print("\033[2K\r", end="")
             print(f"OpenAI APIでエラーが発生しました: {e}")
             return "APIとの通信でエラーが発生しました。時間をおいて再度お試しください。"
         except Exception as e:
         # エラー発生時もローディングアニメーションを停止
             loading.stop()
-            # 念のため、もう一度行をクリア
-            print("\033[2K\r", end="")
             print(f"予期しないエラーが発生しました: {e}")
             return "予期しないエラーが発生しました。"
     
