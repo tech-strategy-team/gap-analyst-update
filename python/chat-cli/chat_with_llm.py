@@ -243,10 +243,22 @@ class ChatWithLLM:
             except UnicodeDecodeError:
                 # UTF-8でデコードできない場合は、他のエンコーディングを試す
                 try:
-                    with open(file_path, 'r', encoding='shift-jis') as f:
+                    with open(file_path, 'r', encoding='utf-8') as f:
                         file_content = f.read()
                 except UnicodeDecodeError:
-                    return False, f"ファイルのエンコーディングを認識できません: {file_path}"
+                    # chardetでエンコーディングを検出
+                    import chardet
+                    with open(file_path, 'rb') as f:
+                        result = chardet.detect(f.read())
+                        encoding = result['encoding']
+                    if encoding:
+                        try:
+                            with open(file_path, 'r', encoding=encoding) as f:
+                                file_content = f.read()
+                        except UnicodeDecodeError:
+                            return False, f"ファイルのエンコーディングを認識できません: {file_path}"
+                    else:
+                        return False, f"ファイルのエンコーディングを認識できません: {file_path}"
             
             # ファイル名を取得
             file_name = os.path.basename(file_path)
