@@ -5,8 +5,10 @@ import sys
 import time
 import threading
 import mimetypes
+import io
 from dotenv import load_dotenv
 from typing import List, Dict, Any, Optional, Tuple, Union
+import PyPDF2
 import openai
 from prompt_toolkit import prompt
 from prompt_toolkit.history import InMemoryHistory
@@ -225,18 +227,48 @@ class ChatWithLLM:
             # MIMEタイプの確認
             mime_type, _ = mimetypes.guess_type(file_path)
             
+            # ファイル名と拡張子を取得
+            file_name = os.path.basename(file_path)
+            _, ext = os.path.splitext(file_path)
+            ext_lower = ext.lower()
+            
+            # PDFファイルの処理
+            if ext_lower == '.pdf' or (mime_type and mime_type == 'application/pdf'):
+                try:
+                    # PDFファイルからテキストを抽出
+                    text_content = ""
+                    with open(file_path, 'rb') as pdf_file:
+                        pdf_reader = PyPDF2.PdfReader(pdf_file)
+                        num_pages = len(pdf_reader.pages)
+                        
+                        # 各ページからテキストを抽出
+                        for page_num in range(num_pages):
+                            page = pdf_reader.pages[page_num]
+                            text_content += page.extract_text() + "\n\n"
+                    
+                    # 抽出したテキストが空でないか確認
+                    if not text_content.strip():
+                        return False, f"PDFファイル「{file_name}」からテキストを抽出できませんでした。スキャンされたPDFの可能性があります。"
+                    
+                    # PDFの内容をユーザーメッセージとして追加
+                    file_message = f"以下は「{file_name}」（PDF）から抽出したテキスト内容です：\n\n```\n{text_content}\n```"
+                    self.history.add_user_message(file_message)
+                    
+                    return True, f"PDFファイル「{file_name}」を追加しました。"
+                except Exception as e:
+                    return False, f"PDFファイル「{file_name}」の処理中にエラーが発生しました: {e}"
+            
             # テキストファイルかどうかの確認
             is_text_file = mime_type and mime_type.startswith('text/')
             
             # 一般的なテキストファイル拡張子のリスト
             text_extensions = ['.txt', '.md', '.py', '.js', '.html', '.css', '.json', '.xml', '.csv', '.log', '.sh', '.bat', '.c', '.cpp', '.h', '.java', '.rb', '.php', '.ts', '.tsx', '.jsx']
             
-            # 拡張子の確認
-            _, ext = os.path.splitext(file_path)
-            if not is_text_file and ext.lower() not in text_extensions:
+            # テキストファイルでない場合はエラー
+            if not is_text_file and ext_lower not in text_extensions:
                 return False, f"サポートされていないファイル形式です: {file_path}"
             
-            # ファイルの内容を読み取り
+            # テキストファイルの内容を読み取り
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     file_content = f.read()
@@ -259,9 +291,6 @@ class ChatWithLLM:
                             return False, f"ファイルのエンコーディングを認識できません: {file_path}"
                     else:
                         return False, f"ファイルのエンコーディングを認識できません: {file_path}"
-            
-            # ファイル名を取得
-            file_name = os.path.basename(file_path)
             
             # ファイルの内容をユーザーメッセージとして追加
             file_message = f"以下は「{file_name}」の内容です：\n\n```{ext[1:]}\n{file_content}\n```"
