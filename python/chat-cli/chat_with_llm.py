@@ -686,7 +686,7 @@ def main():
                     print(
                         f"{success_count}/{len(file_paths)}個のファイルをLLMに渡しました。"
                         f"質問や指示を入力してください。"
-                         )
+                    )
             continue
 
         # LLMとチャット
