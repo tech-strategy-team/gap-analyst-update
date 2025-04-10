@@ -693,5 +693,6 @@ def main():
         response = chat_bot.chat(user_input)
         print(f"\nAI: {response}")
 
+
 if __name__ == "__main__":
     main()
