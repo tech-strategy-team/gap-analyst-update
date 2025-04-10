@@ -1,7 +1,6 @@
 # Python Scriptのexeファイル化手順
 
-このREADMEは、Pythonスクリプト `chat_with_llm.py` をWindows環境でexe化する手順およびその作業概要についてまとめたものです。
- Windows上で実行することを目的として、以下の作業を実施します:
+このREADMEは、Pythonスクリプト `chat_with_llm.py` をWindows環境でexeファイルに変換し、配布可能にするための手順をまとめたものです。この手順書は、プログラミング初心者でも簡単にexeファイルを作成し、配布できるように設計されています。
 
 - Windows上に同じPython環境をセットアップする
 - 必要な依存パッケージをインストールする
