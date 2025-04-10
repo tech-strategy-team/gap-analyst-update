@@ -32,9 +32,6 @@ class LoadingIndicator:
         # 別のアニメーションスタイルのオプション:
         # self.animation_chars = ["-", "\\", "|", "/"]
         # self.animation_chars = [".", "..", "...", "...."]
-        # self.animation_chars = [
-        #    "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█", "▇", "▆", "▅", "▄", "▃", "▂"
-        # ]
 
     def animate(self):
         """アニメーションを表示するメソッド"""
@@ -110,7 +107,7 @@ class ChatWithLLM:
             if self.provider.lower() == "openai":
                 # OpenAIのChatOpenAIを初期化
                 self.llm = ChatOpenAI(
-                    model_name=self.model_name,      
+                    model_name=self.model_name,
                     # 例："gpt-3.5-turbo" または "gpt-4"
                     openai_api_key=self.api_key,
                 )
@@ -264,7 +261,7 @@ class ChatWithLLM:
                             f"PDFファイル「{file_name}」からテキストを抽出できませんでした。"
                             f"スキャンされたPDFの可能性があります。"
                         )
-                    
+
                     # PDFの内容をユーザーメッセージとして追加
                     file_message = (
                         f"以下は「{file_name}」（PDF）から抽出したテキスト内容です：\n\n"
