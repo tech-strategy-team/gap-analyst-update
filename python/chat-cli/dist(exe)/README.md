@@ -35,13 +35,13 @@
 1. **各ライブラリのインストール**
     Windowsのコマンドプロンプトを起動し、以下のコマンドを実行してください:
 
-`pip install python-dotenv`
-`pip install PyPDF2`
-`pip install openai`
-`pip install prompt_toolkit`
-`pip install langchain_openai`
-`pip install langchain_core`
-`pip install chardet`
+`pip install python-dotenv  # 環境変数を扱うためのライブラリ`
+`pip install PyPDF2  # PDFファイルを読み込むためのライブラリ`
+`pip install openai  # OpenAI APIを利用するためのライブラリ`
+`pip install prompt_toolkit  # CLIアプリケーションのUIを構築するためのライブラリ`
+`pip install langchain_openai  # LangchainとOpenAIを連携させるためのライブラリ`
+`pip install langchain_core  # Langchainのコア機能を提供するライブラリ`
+`pip install chardet  # 文字コードを自動判別するためのライブラリ`
 
 PyInstallerのインストール
 
