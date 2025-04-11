@@ -56,6 +56,8 @@ class LoadingIndicator:
         \033[2K: 現在の行を完全にクリア
         \r: カーソルを行の先頭に移動
         """
+        sys.stdout.write("\033[2K\r")
+        sys.stdout.flush()
 
     def start(self):
         """ローディングアニメーションを開始"""
@@ -348,7 +350,87 @@ load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
 
 
-def save_chat_log(chat_history: List[Dict[str, Any]]):
+def generate_title_from_chat(chat_history: List[Dict[str, Any]], api_key: str = None) -> str:
+    """
+    チャット履歴からファイル名に利用するタイトルを生成します。
+    ユーザーの非コマンドメッセージの内容を要約し、
+    不要な記号を除去してファイル名として安全な形式に変換します。
+    
+    Args:
+        chat_history: チャット履歴
+        api_key: OpenAI APIキー（指定されていない場合は環境変数から取得）
+    
+    Returns:
+        生成されたタイトル
+    """
+    # ユーザーの最初の非コマンドメッセージを取得
+    user_message = ""
+    for msg in chat_history:
+        if msg["role"] == "user" and not msg["content"].startswith("/"):
+            user_message = msg["content"]
+            break
+    
+    if not user_message:
+        return "untitled"
+    
+    # APIキーが指定されていない場合は環境変数から取得
+    if not api_key:
+        api_key = os.environ.get("OPENAI_API_KEY")
+    
+    # APIキーがある場合はLLMを使用して要約（メッセージの長さに関わらず）
+    if api_key:
+        try:
+            # ローディングインジケーターを初期化
+            loading = LoadingIndicator("タイトルを生成中です")
+            
+            try:
+                # ローディングアニメーションを開始
+                loading.start()
+                
+                # LLMを使用してタイトルを生成
+                llm = ChatOpenAI(
+                    model_name="o3-mini",  # 軽量モデルを使用
+                    openai_api_key=api_key,
+                )
+                
+                # プロンプトテンプレート
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", "以下のチャットメッセージから、ファイル名に適した短い要約タイトル（15文字程度）を生成してください。チャット内容をそのまま使わず、内容を要約したタイトルにしてください。日本語で返してください。"),
+                    ("human", f"{user_message}")
+                ])
+                
+                # チェーンを実行
+                chain = prompt | llm | StrOutputParser()
+                title_candidate = chain.invoke({})
+                
+                # ローディングアニメーションを停止
+                loading.stop()
+            finally:
+                # エラーが発生した場合もローディングアニメーションを停止
+                if 'loading' in locals() and loading.is_running:
+                    loading.stop()
+            
+            # 長すぎる場合はカット
+            if len(title_candidate) > 30:
+                title_candidate = title_candidate[:30]
+        except Exception as e:
+            print(f"タイトル生成中にエラーが発生しました: {e}")
+            # エラーが発生した場合は、最初の10単語を使用
+            words = user_message.split()
+            title_candidate = " ".join(words[:10])
+    else:
+        # APIキーがない場合は、最初の10単語を使用
+        words = user_message.split()
+        title_candidate = " ".join(words[:10])
+    
+    # ファイル名として安全な形式に変換
+    title_candidate = re.sub(r"[^\w\s-]", "", title_candidate).strip()
+    title_candidate = title_candidate.replace(" ", "-")
+    
+    return title_candidate if title_candidate else "untitled"
+
+
+def save_chat_log(chat_history: List[Dict[str, Any]], api_key: str = None):
     """
     チャット履歴をログファイルに保存
 
@@ -369,9 +451,10 @@ def save_chat_log(chat_history: List[Dict[str, Any]]):
         print(f"ディレクトリ作成中にエラーが発生しました: {e}")
         return None
 
-    # 現在のタイムスタンプを取得してファイル名を生成
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"chat_log_{timestamp}.txt"
+    # チャット内容からタイトルを生成して、日付と組み合わせたファイル名を作成
+    title = generate_title_from_chat(chat_history, api_key)
+    date = datetime.datetime.now().strftime("%Y%m%d")
+    filename = f"chat-log-{title}-{date}.txt"
     filepath = os.path.join(log_dir, filename)
 
     try:
@@ -569,9 +652,9 @@ def main():
 
         # 終了コマンド
         if user_input.lower() in ["exit", "quit", "終了"]:
-            # チャット履歴を取得してログファイルに保存
+        # チャット履歴を取得してログファイルに保存
             chat_history = chat_bot.get_chat_history()
-            log_path = save_chat_log(chat_history)
+            log_path = save_chat_log(chat_history, api_key)
             if log_path:
                 print(f"チャットログを保存しました: {log_path}")
             print("チャットを終了します。")
@@ -656,7 +739,7 @@ def main():
         # 保存コマンド
         if user_input.lower() in ["/save", "/保存"]:
             chat_history = chat_bot.get_chat_history()
-            log_path = save_chat_log(chat_history)
+            log_path = save_chat_log(chat_history, api_key)
             if log_path:
                 print(f"チャットログを保存しました: {log_path}")
             continue
