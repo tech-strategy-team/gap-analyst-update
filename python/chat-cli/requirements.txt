@@ -7,3 +7,4 @@ langchain-openai
 prompt_toolkit
 PyPDF2
 chardet
+flake8==7.2.0
