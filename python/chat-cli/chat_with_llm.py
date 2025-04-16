@@ -496,8 +496,8 @@ def sanitize_filename(title: str) -> str:
         # ファイル名の先頭部分（拡張子を除く）が予約語と一致する場合、接頭辞を追加
         name_lower = sanitized.lower()
         if (
-            name_lower in reserved_names or
-            any(name_lower.startswith(rn + ".") for rn in reserved_names)
+            name_lower in reserved_names
+            or any(name_lower.startswith(rn + ".") for rn in reserved_names)
         ):
             sanitized = "file_" + sanitized
 
