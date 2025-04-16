@@ -365,10 +365,10 @@ api_key = os.getenv("OPENAI_API_KEY")
 def get_first_user_message(chat_history: List[Dict[str, Any]]) -> str:
     """
     チャット履歴から最初の非コマンドメッセージを取得します。
-    
+
     Args:
         chat_history: チャット履歴
-    
+
     Returns:
         最初の非コマンドメッセージ、または空文字列
     """
@@ -381,10 +381,10 @@ def get_first_user_message(chat_history: List[Dict[str, Any]]) -> str:
 def get_api_key(provided_key: str = None) -> str:
     """
     APIキーを取得します。
-    
+
     Args:
         provided_key: 指定されたAPIキー
-    
+
     Returns:
         APIキー、または None
     """
@@ -396,27 +396,27 @@ def get_api_key(provided_key: str = None) -> str:
 def generate_title_with_llm(user_message: str, api_key: str) -> str:
     """
     LLMを使用してタイトルを生成します。
-    
+
     Args:
         user_message: ユーザーのメッセージ
         api_key: OpenAI APIキー
-    
+
     Returns:
         生成されたタイトル
     """
     # ローディングインジケーターを初期化
     loading = LoadingIndicator("タイトルを生成中です")
-    
+
     try:
         # ローディングアニメーションを開始
         loading.start()
-        
+
         # LLMを使用してタイトルを生成
         llm = ChatOpenAI(
             model_name="o3-mini",  # 軽量モデルを使用
             openai_api_key=api_key,
         )
-        
+
         # プロンプトテンプレート
         prompt = ChatPromptTemplate.from_messages([
             ("system", "以下のチャットメッセージから、"
@@ -427,15 +427,15 @@ def generate_title_with_llm(user_message: str, api_key: str) -> str:
                        "日本語で返してください。"),
             ("human", f"{user_message}")
         ])
-        
+
         # チェーンを実行
         chain = prompt | llm | StrOutputParser()
         title = chain.invoke({})
-        
+
         # 長すぎる場合はカット
         if len(title) > 30:
             title = title[:30]
-            
+
         return title
     except Exception as e:
         error_msg = f"タイトル生成中にエラーが発生しました: {e}"
@@ -451,60 +451,60 @@ def generate_title_with_llm(user_message: str, api_key: str) -> str:
 def sanitize_filename(title: str) -> str:
     """
     文字列をファイル名として安全な形式に変換します。
-    
+
     Args:
         title: 変換する文字列
-    
+
     Returns:
         ファイル名として安全な文字列
     """
     # 1. ファイル名に使用できない文字を除去
     # Windows, macOS, Linuxで共通して使用できない文字: / \ : * ? " < > |
     sanitized = re.sub(r'[\\/*?:"<>|]', "", title)
-    
+
     # 2. 制御文字や非表示文字を除去
     sanitized = re.sub(r'[\x00-\x1f\x7f-\x9f]', "", sanitized)
-    
+
     # 3. 先頭と末尾の空白、ピリオド、ハイフンを除去（多くのファイルシステムで問題になる可能性がある）
     sanitized = sanitized.strip(" .-")
-    
+
     # 4. 連続する空白をハイフンに変換
     sanitized = re.sub(r'\s+', "-", sanitized)
-    
+
     # 5. 残りの非英数字（日本語などのUnicode文字は保持）をアンダースコアに変換
     sanitized = re.sub(r'[^\w\s\-\.]', "_", sanitized)
-    
+
     # 6. ファイル名が空の場合はデフォルト値を使用
     if not sanitized:
         return "untitled"
-    
+
     # 7. ファイル名の長さを制限（多くのファイルシステムでは255文字が上限）
     # 余裕を持って200文字に制限
     if len(sanitized) > 200:
         sanitized = sanitized[:200]
-    
+
     # 8. Windowsの予約語をチェック
     reserved_names = [
-        "con", "prn", "aux", "nul", 
+        "con", "prn", "aux", "nul",
         "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
         "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9"
     ]
-    
+
     # ファイル名の先頭部分（拡張子を除く）が予約語と一致する場合、接頭辞を追加
     name_lower = sanitized.lower()
     if name_lower in reserved_names or any(name_lower.startswith(rn + ".") for rn in reserved_names):
         sanitized = "file_" + sanitized
-    
+
     return sanitized
 
 
 def fallback_title(user_message: str) -> str:
     """
     LLMが使用できない場合のフォールバックタイトルを生成します。
-    
+
     Args:
         user_message: ユーザーのメッセージ
-    
+
     Returns:
         生成されたタイトル
     """
@@ -518,23 +518,23 @@ def generate_title_from_chat(chat_history: List[Dict[str, Any]], api_key: str = 
     チャット履歴からファイル名に利用するタイトルを生成します。
     ユーザーの非コマンドメッセージの内容を要約し、
     不要な記号を除去してファイル名として安全な形式に変換します。
-    
+
     Args:
         chat_history: チャット履歴
         api_key: OpenAI APIキー（指定されていない場合は環境変数から取得）
-    
+
     Returns:
         生成されたタイトル
     """
     # ユーザーの最初の非コマンドメッセージを取得
     user_message = get_first_user_message(chat_history)
-    
+
     if not user_message:
         return "untitled"
-    
+
     # APIキーを取得
     api_key = get_api_key(api_key)
-    
+
     # タイトルを生成
     if api_key:
         title = generate_title_with_llm(user_message, api_key)
@@ -543,7 +543,7 @@ def generate_title_from_chat(chat_history: List[Dict[str, Any]], api_key: str = 
     else:
         # APIキーがない場合はフォールバック
         title = fallback_title(user_message)
-    
+
     # ファイル名として安全な形式に変換
     return sanitize_filename(title)
 
