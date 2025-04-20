@@ -5,6 +5,7 @@ import sys
 import time
 import threading
 import mimetypes
+import logging
 from dotenv import load_dotenv
 from typing import List, Dict, Any, Tuple
 import PyPDF2
@@ -56,6 +57,8 @@ class LoadingIndicator:
         \033[2K: 現在の行を完全にクリア
         \r: カーソルを行の先頭に移動
         """
+        sys.stdout.write("\033[2K\r")
+        sys.stdout.flush()
 
     def start(self):
         """ローディングアニメーションを開始"""
@@ -344,54 +347,293 @@ class ChatWithLLM:
             return False, f"ファイル追加中にエラーが発生しました: {e}"
 
 
+# ロギングの設定
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("chat_app.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
 
 
-def save_chat_log(chat_history: List[Dict[str, Any]]):
+def get_first_user_message(chat_history: List[Dict[str, Any]]) -> str:
+    """
+    チャット履歴から最初の非コマンドメッセージを取得します。
+
+    Args:
+        chat_history: チャット履歴
+
+    Returns:
+        最初の非コマンドメッセージ、または空文字列
+    """
+    for msg in chat_history:
+        if msg["role"] == "user" and not msg["content"].startswith("/"):
+            return msg["content"]
+    return ""
+
+
+def get_api_key(provided_key: str = None) -> str:
+    """
+    APIキーを取得します。
+
+    Args:
+        provided_key: 指定されたAPIキー
+
+    Returns:
+        APIキー、または None
+    """
+    if provided_key:
+        return provided_key
+    return os.environ.get("OPENAI_API_KEY")
+
+
+def generate_title_with_llm(user_message: str, api_key: str) -> str:
+    """
+    LLMを使用してタイトルを生成します。
+
+    Args:
+        user_message: ユーザーのメッセージ
+        api_key: OpenAI APIキー
+
+    Returns:
+        生成されたタイトル
+    """
+    # ローディングインジケーターを初期化
+    loading = LoadingIndicator("タイトルを生成中です")
+
+    try:
+        # ローディングアニメーションを開始
+        loading.start()
+
+        # LLMを使用してタイトルを生成
+        llm = ChatOpenAI(
+            model_name="o3-mini",  # 軽量モデルを使用
+            openai_api_key=api_key,
+        )
+
+        # プロンプトテンプレート
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "以下のチャットメッセージから、"
+                       "ファイル名に適した短い要約タイトル"
+                       "（15文字程度）を生成してください。"
+                       "チャット内容をそのまま使わず、"
+                       "内容を要約したタイトルにしてください。"
+                       "日本語で返してください。"),
+            ("human", f"{user_message}")
+        ])
+
+        # チェーンを実行
+        chain = prompt | llm | StrOutputParser()
+        title = chain.invoke({})
+
+        # 長すぎる場合はカット
+        if len(title) > 30:
+            title = title[:30]
+
+        return title
+    except Exception as e:
+        error_msg = f"タイトル生成中にエラーが発生しました: {e}"
+        print(error_msg)
+        logger.error(error_msg)
+        return ""
+    finally:
+        # エラーが発生した場合もローディングアニメーションを停止
+        if loading.is_running:
+            loading.stop()
+
+
+def sanitize_filename(title: str) -> str:
+    """
+    文字列をファイル名として安全な形式に変換します。
+
+    Args:
+        title: 変換する文字列
+
+    Returns:
+        ファイル名として安全な文字列
+    """
+    try:
+        # 1. ファイル名に使用できない文字を除去
+        # Windows, macOS, Linuxで共通して使用できない文字: / \ : * ? " < > |
+        sanitized = re.sub(r'[\\/*?:"<>|]', "", title)
+
+        # 2. 制御文字や非表示文字を除去
+        sanitized = re.sub(r'[\x00-\x1f\x7f-\x9f]', "", sanitized)
+
+        # 3. 先頭と末尾の空白、ピリオド、ハイフンを除去（多くのファイルシステムで問題になる可能性がある）
+        sanitized = sanitized.strip(" .-")
+
+        # 4. 連続する空白をハイフンに変換
+        sanitized = re.sub(r'\s+', "-", sanitized)
+
+        # 5. 残りの非英数字（日本語などのUnicode文字は保持）をアンダースコアに変換
+        sanitized = re.sub(r'[^\w\s\-\.]', "_", sanitized)
+
+        # 6. ファイル名が空の場合はデフォルト値を使用
+        if not sanitized:
+            return "untitled"
+
+        # 7. ファイル名の長さを制限（多くのファイルシステムでは255文字が上限）
+        # 余裕を持って200文字に制限
+        if len(sanitized) > 200:
+            sanitized = sanitized[:200]
+
+        # 8. Windowsの予約語をチェック
+        reserved_names = [
+            "con", "prn", "aux", "nul",
+            "com1", "com2", "com3", "com4",
+            "com5", "com6", "com7", "com8", "com9",
+            "lpt1", "lpt2", "lpt3", "lpt4",
+            "lpt5", "lpt6", "lpt7", "lpt8", "lpt9"
+        ]
+
+        # ファイル名の先頭部分（拡張子を除く）が予約語と一致する場合、接頭辞を追加
+        name_lower = sanitized.lower()
+        if (
+            name_lower in reserved_names
+            or any(name_lower.startswith(rn + ".") for rn in reserved_names)
+        ):
+            sanitized = "file_" + sanitized
+
+        return sanitized
+    except Exception as e:
+        error_msg = f"ファイル名のサニタイズ中にエラーが発生しました: {e}"
+        print(error_msg)
+        logger.error(error_msg)
+        return "untitled"
+
+
+def fallback_title(user_message: str) -> str:
+    """
+    LLMが使用できない場合のフォールバックタイトルを生成します。
+
+    Args:
+        user_message: ユーザーのメッセージ
+
+    Returns:
+        生成されたタイトル
+    """
+    try:
+        # 最初の10単語を使用
+        words = user_message.split()
+        return " ".join(words[:10])
+    except Exception as e:
+        error_msg = f"フォールバックタイトル生成中にエラーが発生しました: {e}"
+        print(error_msg)
+        logger.error(error_msg)
+        return "untitled"
+
+
+def generate_title_from_chat(
+    chat_history: List[Dict[str, Any]],
+    api_key: str = None
+) -> str:
+    """
+    チャット履歴からファイル名に利用するタイトルを生成します。
+    ユーザーの非コマンドメッセージの内容を要約し、
+    不要な記号を除去してファイル名として安全な形式に変換します。
+
+    Args:
+        chat_history: チャット履歴
+        api_key: OpenAI APIキー（指定されていない場合は環境変数から取得）
+
+    Returns:
+        生成されたタイトル
+    """
+    try:
+        # ユーザーの最初の非コマンドメッセージを取得
+        user_message = get_first_user_message(chat_history)
+
+        if not user_message:
+            return "untitled"
+
+        # APIキーを取得
+        api_key = get_api_key(api_key)
+
+        # タイトルを生成
+        if api_key:
+            title = generate_title_with_llm(user_message, api_key)
+            if not title:  # LLMでの生成に失敗した場合
+                title = fallback_title(user_message)
+        else:
+            # APIキーがない場合はフォールバック
+            title = fallback_title(user_message)
+
+        # ファイル名として安全な形式に変換
+        return sanitize_filename(title)
+    except Exception as e:
+        error_msg = f"タイトル生成処理中にエラーが発生しました: {e}"
+        print(error_msg)
+        logger.error(error_msg)
+        return "untitled"
+
+
+def save_chat_log(chat_history: List[Dict[str, Any]], api_key: str = None):
     """
     チャット履歴をログファイルに保存
 
     Args:
         chat_history: 保存するチャット履歴
+        api_key: OpenAI APIキー（指定されていない場合は環境変数から取得）
 
     Returns:
         保存したファイルのパス、または保存に失敗した場合はNone
     """
-    # ログ用のディレクトリを作成（存在しない場合）
-    # カレントディレクトリからの相対パスでlogsディレクトリを指定
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    log_dir = os.path.join(script_dir, "logs")
-
     try:
-        os.makedirs(log_dir, exist_ok=True)
-    except OSError as e:
-        print(f"ディレクトリ作成中にエラーが発生しました: {e}")
-        return None
+        # ログ用のディレクトリを作成（存在しない場合）
+        # カレントディレクトリからの相対パスでlogsディレクトリを指定
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        log_dir = os.path.join(script_dir, "logs")
 
-    # 現在のタイムスタンプを取得してファイル名を生成
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"chat_log_{timestamp}.txt"
-    filepath = os.path.join(log_dir, filename)
+        try:
+            os.makedirs(log_dir, exist_ok=True)
+        except OSError as e:
+            error_msg = f"ディレクトリ作成中にエラーが発生しました: {e}"
+            print(error_msg)
+            logger.error(error_msg)
+            return None
 
-    try:
-        with open(filepath, "w", encoding="utf-8") as f:
-            # ヘッダーを書き込み
-            now = datetime.datetime.now()
-            header = f"===== チャットログ ({
-                now.strftime('%Y-%m-%d %H:%M:%S')}) =====\n\n"
-            f.write(header)
+        # チャット内容からタイトルを生成して、日付と組み合わせたファイル名を作成
+        title = generate_title_from_chat(chat_history, api_key)
+        date = datetime.datetime.now().strftime("%Y%m%d")
+        filename = f"chat-log-{date}-{title}.txt"
+        filepath = os.path.join(log_dir, filename)
 
-            # チャット履歴を書き込み
-            role_mapping = {"system": "システム", "user": "あなた", "assistant": "AI"}
-            for msg in chat_history:
-                role = role_mapping.get(msg["role"], "不明")
-                f.write(f"{role}: {msg['content']}\n\n")
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                # ヘッダーを書き込み
+                now = datetime.datetime.now()
+                header = f"===== チャットログ ({
+                    now.strftime('%Y-%m-%d %H:%M:%S')}) =====\n\n"
+                f.write(header)
 
-        print(f"チャットログを {filepath} に保存しました。")
-        return filepath
+                # チャット履歴を書き込み
+                role_mapping = {
+                    "system": "システム",
+                    "user": "あなた",
+                    "assistant": "AI"
+                }
+                for msg in chat_history:
+                    role = role_mapping.get(msg["role"], "不明")
+                    f.write(f"{role}: {msg['content']}\n\n")
+
+            print(f"チャットログを {filepath} に保存しました。")
+            return filepath
+        except Exception as e:
+            error_msg = f"ログファイルの保存中にエラーが発生しました: {type(e)} - {e}"
+            print(error_msg)
+            logger.error(error_msg)
+            return None
     except Exception as e:
-        print(f"ログファイルの保存中にエラーが発生しました: {type(e)} - {e}")
+        error_msg = f"チャットログ保存処理中に予期しないエラーが発生しました: {e}"
+        print(error_msg)
+        logger.error(error_msg)
         return None
 
 
@@ -424,12 +666,29 @@ def load_chat_log(filepath: str) -> List[Dict[str, str]]:
                     if os.path.exists(filepath_in_logs):
                         filepath = filepath_in_logs
                     else:
-                        print(f"ファイルが見つかりません: {filepath}")
+                        error_msg = f"ファイルが見つかりません: {filepath}"
+                        print(error_msg)
+                        logger.error(error_msg)
                         return []
 
         # ファイルを読み込む
-        with open(filepath, "r", encoding="utf-8") as f:
-            content = f.read()
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                content = f.read()
+        except UnicodeDecodeError:
+            try:
+                # UTF-8でデコードできない場合は、他のエンコーディングを試す
+                import chardet
+                with open(filepath, 'rb') as f:
+                    result = chardet.detect(f.read())
+                    encoding = result['encoding']
+                with open(filepath, 'r', encoding=encoding) as f:
+                    content = f.read()
+            except Exception as e:
+                error_msg = f"ファイルのエンコーディングを認識できません: {e}"
+                print(error_msg)
+                logger.error(error_msg)
+                return []
 
         # ヘッダー部分を除外
         header_pattern = r"===== チャットログ \(.*?\) =====\n\n"
@@ -450,7 +709,9 @@ def load_chat_log(filepath: str) -> List[Dict[str, str]]:
 
         return messages
     except Exception as e:
-        print(f"ログファイルの読み込み中にエラーが発生しました: {e}")
+        error_msg = f"ログファイルの読み込み中にエラーが発生しました: {e}"
+        print(error_msg)
+        logger.error(error_msg)
         return []  # エラーが発生した場合は空のリストを返す
 
 
@@ -522,9 +783,8 @@ def main():
                             logs_dir, log_files[choice - 1])
                         loaded_messages = load_chat_log(log_path)
                         if loaded_messages:
-                            print(
-                                f"チャットログを読み込みました。メッセージ数: {
-                                    len(loaded_messages)}")
+                            print(f"チャットログを読み込みました。"
+                                  f"メッセージ数: {len(loaded_messages)}")
                         else:
                             print("指定されたファイルからチャット履歴を読み込めませんでした。新規チャットを開始します。")
                     else:
@@ -571,7 +831,7 @@ def main():
         if user_input.lower() in ["exit", "quit", "終了"]:
             # チャット履歴を取得してログファイルに保存
             chat_history = chat_bot.get_chat_history()
-            log_path = save_chat_log(chat_history)
+            log_path = save_chat_log(chat_history, api_key)
             if log_path:
                 print(f"チャットログを保存しました: {log_path}")
             print("チャットを終了します。")
@@ -656,7 +916,7 @@ def main():
         # 保存コマンド
         if user_input.lower() in ["/save", "/保存"]:
             chat_history = chat_bot.get_chat_history()
-            log_path = save_chat_log(chat_history)
+            log_path = save_chat_log(chat_history, api_key)
             if log_path:
                 print(f"チャットログを保存しました: {log_path}")
             continue
