@@ -1,0 +1,22 @@
+name: Markdown Lint
+on:
+  pull_request:
+    paths:
+      - 'doc/**'
+  workflow_dispatch:
+
+jobs:
+    markdownlint:
+        runs-on: ubuntu-latest
+        steps:
+        - name: Checkout code
+          uses: actions/checkout@v2
+    
+        - name: Install markdownlint
+          run: |
+            sudo apt-get install -y markdownlint
+    
+        - name: Run markdownlint
+          run: |
+            cd doc
+            markdownlint .
