@@ -38,6 +38,7 @@ python prediction_model.py
 ```
 
 このスクリプトは以下の処理を行います：
+
 - `data-sample.xlsx` からデータを読み込む
 - データの前処理（欠損値の処理など）
 - ランダムフォレスト回帰モデルの作成とハイパーパラメータのチューニング
@@ -56,6 +57,7 @@ python improved_model.py
 ```
 
 このスクリプトは以下の処理を行います：
+
 - `data-sample.xlsx` からデータを読み込む
 - データの前処理（欠損値の処理など）
 - 複数のモデル（RandomForest、GradientBoosting、AdaBoost、ElasticNet、Lasso、Ridge、SVR、MLP）の評価
@@ -87,28 +89,36 @@ python improved_predict.py <予測したいExcelファイルのパス>
 ## モデルの性能
 
 ### ランダムフォレストモデル
+
 - 平均二乗誤差 (MSE): 156001.51
 - 平方根平均二乗誤差 (RMSE): 394.97
 - 決定係数 (R²): 0.21
 
 ### 改良されたモデル（MLP - ニューラルネットワーク）
+
 - 平均二乗誤差 (MSE): 136549.21
 - 平方根平均二乗誤差 (RMSE): 369.53
 - 決定係数 (R²): 0.31
-- 最適なパラメータ: {'regressor__alpha': 0.0001, 'regressor__hidden_layer_sizes': (50, 50), 'regressor__learning_rate': 'constant'}
+- 最適なパラメータ:
+
+   ```json
+   {'regressor__alpha': 0.0001, 'regressor__hidden_layer_sizes': (50, 50), 'regressor__learning_rate': 'constant'}
+   ```
 
 改良されたモデル（MLP）は、ランダムフォレストモデルと比較して精度が向上しています。決定係数（R²）が0.21から0.31に向上し、RMSEも394.97から369.53に減少しています。ただし、依然として決定係数が0.31と低めなので、さらなる改善の余地があります。
 
 ## 特徴量
 
 モデルは以下の特徴量を使用します：
+
 - ISS区分
 - 部
 - 部門
 - 担当
 - 投資_リース
 
-### ランダムフォレストモデルの特徴量の重要度（上位5）：
+### ランダムフォレストモデルの特徴量の重要度（上位5）
+
 1. 担当: 0.3630
 2. 部門_a: 0.1339
 3. 部門_d: 0.0919
@@ -118,6 +128,7 @@ python improved_predict.py <予測したいExcelファイルのパス>
 ## 目的変数
 
 予測対象は以下の変数です：
+
 - 着地見込み額合計
 
 ## 各モデルの比較

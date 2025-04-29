@@ -58,4 +58,3 @@ sequenceDiagram
     User->>Script: exit
     Script->>User: チャットを終了します。
 ```
-
