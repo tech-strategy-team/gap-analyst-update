@@ -99,7 +99,11 @@ python improved_predict.py <予測したいExcelファイルのパス>
 - 平均二乗誤差 (MSE): 136549.21
 - 平方根平均二乗誤差 (RMSE): 369.53
 - 決定係数 (R²): 0.31
-- 最適なパラメータ: {'regressor__alpha': 0.0001, 'regressor__hidden_layer_sizes': (50, 50), 'regressor__learning_rate': 'constant'}
+- 最適なパラメータ:
+
+   ```json
+   {'regressor__alpha': 0.0001, 'regressor__hidden_layer_sizes': (50, 50), 'regressor__learning_rate': 'constant'}
+   ```
 
 改良されたモデル（MLP）は、ランダムフォレストモデルと比較して精度が向上しています。決定係数（R²）が0.21から0.31に向上し、RMSEも394.97から369.53に減少しています。ただし、依然として決定係数が0.31と低めなので、さらなる改善の余地があります。
 
