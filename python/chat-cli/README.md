@@ -1,7 +1,6 @@
 # Chat with LLM
 
-![](https://github.com/Hiralion/n-group/actions/workflows/python-test.yaml/badge.svg)
-
+![badge](https://github.com/Hiralion/n-group/actions/workflows/python-test.yaml/badge.svg)
 
 ユーザーがCLIでLLMと対話するアプリケーションです。  
 このアプリケーションを使用すると、OpenAIのAPIを利用してAIと対話できます。  
@@ -33,8 +32,8 @@
     echo "OPENAI_API_KEY=<API-KEY>" >> .env
     ```
 
-
     `.env`ファイルが正しく設定されていることを確認してください。
+
     ```console
     $ cat .env
     OPENAI_API_KEY=...
@@ -43,11 +42,12 @@
 1. アプリケーションの実行
 
     ```console
-    $ python3 chat_with_llm.py
+    python3 chat_with_llm.py
     ```
 
     実行後、以下のように対話を開始できます。
-    ```
+
+    ```text
     LLMとチャットを開始します。終了するには 'exit' または 'quit' と入力してください。
     システムプロンプトを入力してください（デフォルト: あなたは親切で役立つAIアシスタントです。）:  
 
@@ -59,7 +59,6 @@
     チャットを終了します。
     ```
 
-
 ## 注意事項
 
 - OpenAI APIキーは個人の責任で管理してください。
@@ -67,5 +66,5 @@
 
 ## コントリビュータ
 
-- @Hiralion 
+- @Hiralion
 - @kouichihara
