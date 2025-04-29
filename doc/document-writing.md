@@ -72,15 +72,15 @@
 
 ドキュメントを書く際には、どんなドキュメントタイプなのかを理解する必要がある。
 
-| Contents type    | description                                                  |
-| ---------------- | ------------------------------------------------------------ |
+| Contents type | description |
+| ------------- | ----------- |
 | README           | コード全体を要約して、リポジトリの斎場に配置される。概要や説明が必要となる重要なサブフォルダにもおく。 |
-| Start guide      | 使用するための簡単なデモと他のドキュメントへのリンク         |
-| Concept          | ソフトウェア実装の技術説明                                   |
-| How to guide     | 使用する際の手順                                             |
-| API reference    | APIの呼び出し方法と構文の一覧                                |
-| Trouble shooting | よくある問題の解決方法                                       |
-| Release note     | 変更履歴                                                     |
+| Start guide      | 使用するための簡単なデモと他のドキュメントへのリンク |
+| Concept          | ソフトウェア実装の技術説明 |
+| How to guide     | 使用する際の手順 |
+| API reference    | APIの呼び出し方法と構文の一覧 |
+| Trouble shooting | よくある問題の解決方法 |
+| Release note     | 変更履歴 |
 
 ### README
 
