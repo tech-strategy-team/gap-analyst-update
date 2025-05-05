@@ -11,7 +11,7 @@ subgraph Root_module
     ConfigFile
 end
 
-ConfigFile --Terrafrom Cmmand--> TerraformCore
+ConfigFile --Terrafrom Command--> TerraformCore
 
 subgraph TerraformApp
     TerraformCore --gRPC-->TerraformProvider
@@ -68,7 +68,7 @@ resource "aws_sqs_queue" "my_queue" {
 
 Terrafromでよく用いられるのがdataブロックで表現されるデータソース。既存のリソース情報を取得して、参照できる。Resourceと異なり、作成・変更などのアクションはせず、参照のみを実行する。
 
-```terrafrom
+```terraform
 data "aws_sqs_queue" "example" {
     name = "sqs-test"
 }
@@ -99,7 +99,7 @@ Terrafromは1つのディレクトリからなる「モジュール」が構成�
 ### バージョン指定とプロバイダ情報の設定
 
 ```terrafrom
-teffaform {
+terraform {
     required_version = "1.9.8"
     required_providers {
         aws = {
@@ -143,7 +143,7 @@ teffaform {
 
   ```terraform
   resource = "aws_sqs_queue" "tokyo" {
-    nanme = "tokyo-queue"
+    name = "tokyo-queue"
   }
   resource = "aws_sqs_queue" "ue1" {
     name = "ue1-queue"
@@ -160,7 +160,7 @@ tfstateファイルにはどのリソースがTerraform管理かになるのか�
   TerraformでAWSリソース管理をする際は、tfstateファイルの保存先をS3にするのが一般的。
 
   ```terraform
-  terrafrom {
+  terraform {
     backend "s3" {
         bucket = "dev-tfstate-aws-iac-book-project"
         key = "case1/terrafrom.tfstate"
@@ -184,7 +184,7 @@ tfstateファイルにはどのリソースがTerraform管理かになるのか�
 
 - variableブロック
   
-  ```terrafrom
+  ```terraform
   variable "domain_name" {
     type        = string
     description = "ドメイン名"
@@ -196,13 +196,13 @@ tfstateファイルにはどのリソースがTerraform管理かになるのか�
     description = "メモリサイズ。単位はMB。指定しない場合にはデフォルトの128"
   }
 
-  varibale "storage" {
+  variable "storage" {
     type        = string
     validation {
         condition       = can(regex("~(prd|stg|dev)$", var.stage))
         error_message   = "ステージはprd,stg,devのいずれかを指定してください"
     }
-    description = "ステージの名前。prd,stg,devのいずれかを指定
+    description = "ステージの名前。prd,stg,devのいずれかを指定"
   }
   ```
 
@@ -230,7 +230,7 @@ tfstateファイルにはどのリソースがTerraform管理かになるのか�
 
 デプロイされたリソースの情報(ID)を呼び出し元のモジュールで使いたい場合に、outputブロックを使用する。
 
-```terrafrom
+```terraform
 output "sqs_tokyo_url" {
     value       = aws_sqs_queue.tokyo.url
     description = "東京リージョンのSQSキューのURL”
