@@ -252,3 +252,397 @@ terraform {
     }
 }
 ```
+
+### localsブロック
+
+ローカル変数を定義できるブロックで、ルートモジュールや子モジュールで繰り返し使う値をlocakブロックに定義し、それをモジュール内から参照できる。
+
+```terraform
+data "aws_caller_identity" "current" {}
+
+locals {
+  aws_account_id    = data.aws_caller_identity.current.account_id
+  bucket_name       = "${var.stage}-bucket-${local.aws_account_id}"
+  desired_capacity  = var.stage == "prd" ? 4 : 2
+}
+
+条件分岐をしたい場合は以下の３項演算子を用いる。
+
+```text
+[条件] ? [真の場合の値] : [[偽の場合の値]
+```
+
+### 繰り返し処理の記述
+
+- countによるリソースブロックの繰り返し
+
+  resourceブロックの引数として記述できるもので、繰り返し数を示す整数値を指定する。
+
+  ```terraform
+  variable "schedules" {
+    type = list{string}
+    default = [
+      "cron(45 16 ? * 1 *)",
+      "cron(00 12 * * ? *)"
+    ]
+  }
+  resource "aws_cloudwatch_event_rule" "scheduled_start" {
+    count               = length(var.schedules)
+    name                = "start_${count.index}"
+    schedule_expression = var.schedules[count.index]
+  }
+  ```
+
+- countによるリソース作成の有無の制御
+
+  countを使うことで、入力パラメータによってリソース作成の有無を制御できる。
+  
+  以下の例では、countが0の場合はこのresourceブロックはないものとみなされ、作成されない。
+
+  ```terraform
+  variable "has_url" {
+    type    = bool
+    default = false
+  }
+  resource "aws_lambda_function" "this" {
+    略
+  }
+  resourec "aws_lamdba_function_url" "this" {
+    count               = var.has_url ? 1 : 0
+    authorization_type  = "NONE"
+    function_name       = aws_lambda_function.this.functio_name
+  }
+  ```
+
+- for_eachによるリソースブロックの繰り返し(対マップ型)
+
+  マップ型のKeyとValueでresourceブロックを繰り返す際に、for_eachを利用できる。
+  マップを入力パラメータとし、その入力パラメータのKeyの個数だけ、`aws_security_group_rule`のリソースが繰り返される。
+
+  ```terraform
+  variable "security_group_egress_ports" {
+    type        = map(number)
+    description = "protocol => port"
+  }
+  resource "aws_security_group" "this" {
+    略
+  }
+  resource "aws_security_group_rule" "egress" {
+    for_each          = var.security_group_egress_ports
+    from_port         = each.value
+    to_port           = each.value
+    description       = "for ${each.key}"
+    protocol          = "tcp"
+    secruity_group_id = aws_security_group.this.id
+    type              = "egress""
+    cidr_blocks       = ["0.0.0.0/0"]
+  }
+  ```
+  
+  入力例
+  
+  ```terraform
+  security_group_egress_ports = {
+    http = 80,
+    https = 443
+  }
+  ```
+
+  展開後
+
+  ```terraform
+  resource "aws_security_group_rule" "egress" {
+    from_port         = 80
+    to_port           = 80
+    description       = "for http"
+    protocol          = "tcp"
+    security_group_id = aws_security_group.this.id
+    type              = "egress"
+    cidr_blocks       = ["0.0.0.0/0"]
+  }
+  resource "aws_security_group_rule" "egress" {
+    from_port         = 443
+    to_port           = 443
+    description       = "for https"
+    protocol          = "tcp"
+    security_group_id = aws_security_group.this.id
+    type              = "egress"
+    cidr_blocks       = ["0.0.0.0/0"]
+  }
+  ```
+
+- for_eachによるリースブロックの繰り返し(対リスト型)
+
+  Terraformの for_each は セット型（set）またはマップ型（map） に対して使うことが前提。しかし、list 型（順序あり・重複あり）をそのまま for_each に渡すとエラーになる。そのため、リスト型の値をtoset()を用いて集合に変換した上で、for_eachに指定することも可能
+
+  ```terraform
+  variable "permission_principals" {
+    type    = list(string)
+    default = []
+  }
+  
+  resource "aws_lamdba_function" "this" {
+    略
+  }
+
+  resource "aws_lamdba_permission" "this" {
+    for_each      = toset(var.permission_principals)
+    action        = "lamdba:InvokeFunction"
+    function_name = aws_lamdba_function.this.function_name
+    principal     = each.value
+  }
+  ```
+
+- dynamicを使ったブロックの繰り返し
+
+  dynamicは、あるブロック内にネストされたブロックの繰り返しに用いる。
+
+  ```terraform
+  # 基本構文
+  dynamic "ブロック名" {
+    for_each = iterable
+    content {
+      # ブロックの中身
+      # each.value を使って中身を指定
+    }
+  }
+  ```
+
+  dynamicは、1つのラベルを持つブロックで、ラベルには繰り返すブロックの名前を指定する。
+  また、dynamicブロックの引数のfor_eachに繰り返すブロックの中で使う値の配列を、contentのブロックに、繰り返すブロックの内容を指定する。
+
+  ```terraform
+  variable "allowed_actions" {
+    type = list(
+      object(
+        {
+          actions   = list(string)
+          resources = list(string)
+        }
+      )
+    )
+    default = []
+  }
+
+  data "aws_iam_policy_document" "lamdba_policy" {
+    dynamic "statement" {
+      for_each = var.allowed_actions
+      current {
+        actions   = statement.value.actions
+        effect    = "Allow"
+        resources = statement.value.resources
+      }
+    }
+  }
+  ```
+
+  入力
+
+  ```terraform
+  allowed_actions = [
+    {
+      actions   = ["states:StartExecution"]
+      resources = ["*"]
+    },
+    {
+      actions   = ["ssm:GetParameter"]
+      resources = [aws_ssm_parameter.slack_secret.arn]
+    }
+  ]
+  ```
+
+  展開
+
+  ```terraform
+  data "aws_iam_policy_document" "lambda_policy" {
+    statement {
+      actions   = ["states:StartExecution"]
+      effect    = "Allow"
+      resources = ["*"]
+    }
+
+    statement {
+      actions   = ["ssm:GetParameter"]
+      effect    = "Allow"
+      resources = [aws_ssm_parameter.slack_secret.arn]
+    }
+  }
+  ```
+
+  ネストブロックを繰り返したいときは dynamic を使う。resource の繰り返しは for_each。
+
+## Terraformのモジュール配置
+
+### モジュール配置の要件
+
+1. 環境ごとにバックエンド(tfstate)の設定を持つこと
+1. 各環境の1つのルートモジュールで全てのリソースを管理するのではなく、リソースの論理的な単位でルートモジュールを環境内でさらに分けること
+1. Terraformの操作に複数のAWSアカウントのクレデンシャルを必要としないこと
+
+### モジュール構成例
+
+```text
+.
+├── env
+│   ├── dev
+│   │   ├── usecase1
+│   │   │   └── （.tfファイル）
+│   │   └── usecase2
+│   │       └── （.tfファイル）
+│   └── prd
+│       ├── usecase1
+│       │   └── （.tfファイル）
+│       └── usecase2
+│           └── （.tfファイル）
+├── modules
+│   ├── module1
+│   │   └── （.tfファイル）
+│   └── module2
+│       └── （.tfファイル）
+└── usecases
+    ├── usecase1
+    │   └── （.tfファイル）
+    └── usecase2
+    └── （.tfファイル）
+```
+
+- usecase: 1つのルートモジュールでデプロイしたいリソースを記述した子モジュールを配置する
+- module: 複数のルートモジュールや子モジュールから呼び出される可能性がある汎用的な子モジュールを配置する。
+
+### モジュール内でのファイル構成
+
+ルートモジュール内のファイル構成の例
+
+```tree
+.
+├── .terraform-version
+├── backend.tf
+├── data.tf
+├── locals.tf
+├── main.tf
+├── outputs.tf
+├── providers.tf
+└── terraform.tf
+```
+
+子モジュール内のファイル構成の例
+
+```tree
+.
+├── data.tf
+├── locals.tf
+├── main.tf
+├── outputs.tf
+├── terraform.tf
+└── variables.tf
+```
+
+- main.tf
+
+  リソースの記述をまとめて行う。
+
+- data.tf
+
+  公式の推奨スタイルにはないファイルだが、モジュールの中でdataブロックを使って既存のリソースを記述するということは、モジュール外のリソースに依存し地得ることになるため、依存関係を示すために、dataブロックの記述はdata.tfにまとめておくことを推奨する。
+
+- locals.tf
+
+  複数のファイルから参照されるlocalsブロックの変数をまとめる。特定のファイルに関連が強い場合は、そのファイルにまとめておく方が良い場面もある。
+
+## Terraformのコマンド
+
+### terraform init
+
+ルートモジュールで初めてterraformコマンドを実行するときや、プロバイダのバージョン変更、バックエンドの設定変更などがあったときに実行する。プロバイダファイルのダウンロード、モジュールのインストール、バックエンドの設定が行われる。
+
+`terraform init`コマンドを実行すると、以下が生成される。
+
+- `.terraform`ディレクトリ
+
+  gitの管理対象にする必要はないため、`.gitignore`で無視するのが推奨。
+
+- `.terraform.lock.hcl`ファイル
+
+  プロバイダやモジュールのバージョン、チェックサムが保存されているファイルで、`terraform init`実行時の再現性を担保するファイルなので、バージョン管理対象外とすべき。
+
+これらを削除することで、コマンド実行前の状態に戻すことが可能である。
+
+```bash
+% terraform init
+Initializing the backend...
+Initializing modules...
+- sqs_module_test in ../../../module/sqs
+Initializing provider plugins...
+- Finding hashicorp/aws versions matching ">= 5.72.1"...
+- Installing hashicorp/aws v5.97.0...
+- Installed hashicorp/aws v5.97.0 (signed by HashiCorp)
+Terraform has created a lock file .terraform.lock.hcl to record the provider
+selections it made above. Include this file in your version control repository
+so that Terraform can guarantee to make the same selections by default when
+you run "terraform init" in the future.
+
+Terraform has been successfully initialized!
+
+You may now begin working with Terraform. Try running "terraform plan" to see
+any changes that are required for your infrastructure. All Terraform commands
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+```
+
+### terraform plan
+
+手元のConfigダイルによって記述されたリソースの状態と実際のリソースの状態を比較して、リソースの操作内容の実行計画を作成し、リソースに対してどのような操作を行うか？を表示する。
+
+```bash
+% terraform plan
+
+Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # module.sqs_module_test.aws_sqs_queue.this will be created
+  + resource "aws_sqs_queue" "this" {
+      + arn                               = (known after apply)
+      + content_based_deduplication       = false
+      + deduplication_scope               = (known after apply)
+      + delay_seconds                     = 0
+      + fifo_queue                        = false
+      + fifo_throughput_limit             = (known after apply)
+      + id                                = (known after apply)
+      + kms_data_key_reuse_period_seconds = (known after apply)
+      + max_message_size                  = 2048
+      + message_retention_seconds         = 345600
+      + name                              = "dev-queue-test"
+      + name_prefix                       = (known after apply)
+      + policy                            = (known after apply)
+      + receive_wait_time_seconds         = 0
+      + redrive_allow_policy              = (known after apply)
+      + redrive_policy                    = (known after apply)
+      + sqs_managed_sse_enabled           = (known after apply)
+      + tags_all                          = {
+          + "MODULE"    = "case1"
+          + "STAGE"     = "dev"
+          + "Terraform" = "true"
+        }
+      + url                               = (known after apply)
+      + visibility_timeout_seconds        = 60
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+```
+
+### terraform apply
+
+`terraform plan`と同様に実行計画を作成したのちに、実際にリソースの操作を行う。
+
+### Terraformコマンド実行に必要な許可ポリシー
+
+| コマンド　| 必要な許可ポリシー　| 備考　|
+|--------|-------------------|------|
+| terraform init     | ReadOnlyAccess | より厳密には tfstate ファイルを格納するバケットの読み取り権限のみがあれば良い |
+| terraform plan     | ReadOnlyAccess         |  |
+| terraform apply    | AdministratorAccess    |  |
