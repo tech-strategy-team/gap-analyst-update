@@ -255,7 +255,7 @@ terraform {
 
 ### localsブロック
 
-ローカル変数を定義できるブロックで、ルートモジュールや子モジュールで繰り返し使う値をlocakブロックに定義し、それをモジュール内から参照できる。
+ローカル変数を定義できるブロックで、ルートモジュールや子モジュールで繰り返し使う値をlocalsブロックに定義し、それをモジュール内から参照できる。
 
 ```terraform
 data "aws_caller_identity" "current" {}
@@ -307,7 +307,7 @@ locals {
   resource "aws_lambda_function" "this" {
     略
   }
-  resourec "aws_lamdba_function_url" "this" {
+  resource "aws_lambda_function_url" "this" {
     count               = var.has_url ? 1 : 0
     authorization_type  = "NONE"
     function_name       = aws_lambda_function.this.functio_name
@@ -333,8 +333,8 @@ locals {
     to_port           = each.value
     description       = "for ${each.key}"
     protocol          = "tcp"
-    secruity_group_id = aws_security_group.this.id
-    type              = "egress""
+    security_group_id = aws_security_group.this.id
+    type              = "egress"
     cidr_blocks       = ["0.0.0.0/0"]
   }
   ```
@@ -381,13 +381,13 @@ locals {
     default = []
   }
   
-  resource "aws_lamdba_function" "this" {
+  resource "aws_lambda_function" "this" {
     略
   }
 
-  resource "aws_lamdba_permission" "this" {
+  resource "aws_lambda_permission" "this" {
     for_each      = toset(var.permission_principals)
-    action        = "lamdba:InvokeFunction"
+    action        = "lambda:InvokeFunction"
     function_name = aws_lamdba_function.this.function_name
     principal     = each.value
   }
@@ -424,7 +424,7 @@ locals {
     default = []
   }
 
-  data "aws_iam_policy_document" "lamdba_policy" {
+  data "aws_iam_policy_document" "lambda_policy" {
     dynamic "statement" {
       for_each = var.allowed_actions
       current {
@@ -563,7 +563,7 @@ locals {
 
 - `.terraform.lock.hcl`ファイル
 
-  プロバイダやモジュールのバージョン、チェックサムが保存されているファイルで、`terraform init`実行時の再現性を担保するファイルなので、バージョン管理対象外とすべき。
+  プロバイダやモジュールのバージョン、チェックサムが保存されているファイルで、`terraform init`実行時の再現性を担保するファイルなので、バージョン管理対象とすべき。
 
 これらを削除することで、コマンド実行前の状態に戻すことが可能である。
 
