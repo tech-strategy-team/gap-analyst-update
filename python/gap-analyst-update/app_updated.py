@@ -215,7 +215,8 @@ def render_category_summary_and_charts(
             use_container_width=True,
             height=260,
         )
-    except Exception:
+    except Exception as e:
+        st.warning(f"テーブルのスタイル適用中にエラーが発生しました: {e}")
         # Styler 非対応環境へのフォールバック
         st.dataframe(summary, use_container_width=True, height=260)
 
