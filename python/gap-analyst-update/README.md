@@ -5,7 +5,7 @@ Streamlit で乖離分析を行うアプリ（`app_updated.py`）。
 ## セットアップ
 
 ```bash
-cd /Users/hosonohiroki/Projects/n-group/python/gap-analyst-update
+cd python/gap-analyst-update
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
