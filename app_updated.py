@@ -50,6 +50,13 @@ REQUIRED_COLS: List[str] = [
     "組替有無",
 ]
 
+GROUP_MAP = {
+    "ISS区分": ["ISS区分"],
+    "部門": ["部門"],
+    "担当者": ["担当者"],
+    "ISS区分×部門": ["ISS区分", "部門"],
+}
+
 
 @dataclass(frozen=True)
 class AppConfig:
@@ -132,11 +139,11 @@ def group_summary(df: pd.DataFrame, group_cols: List[str], threshold: float) -> 
 
 def monthly_series(df: pd.DataFrame) -> pd.DataFrame:
     """選択スコープの月次累計を返します。"""
-    dev = df[DEV_MONTH_COLS].sum(axis=0)
-    land = df[LAND_MONTH_COLS].sum(axis=0)
+    dev = df[DEV_MONTH_COLS].apply(pd.to_numeric, errors="coerce").sum(axis=0)
+    land = df[LAND_MONTH_COLS].apply(pd.to_numeric, errors="coerce").sum(axis=0)
 
     # 実績列が存在する場合は合計を計算
-    total_actual = df["実績"].sum() if "実績" in df.columns else 0
+    total_actual = pd.to_numeric(df["実績"], errors="coerce").sum() if "実績" in df.columns else 0
 
     out = pd.DataFrame(
         {
@@ -239,17 +246,12 @@ def render_category_summary_and_charts(
                     cat_data = breakdown[breakdown[category_col] == cat]
 
                     # 長形式へ変換
-                    long_rows = []
-                    for _, row in cat_data.iterrows():
-                        for m in money_cols:
-                            long_rows.append(
-                                {
-                                    "金額種別": m,
-                                    "組替有無": row["組替有無"],
-                                    "金額": float(row[m]),
-                                }
-                            )
-                    long_df = pd.DataFrame(long_rows)
+                    long_df = cat_data.melt(
+                        id_vars=["組替有無"],
+                        value_vars=money_cols,
+                        var_name="金額種別",
+                        value_name="金額",
+                    )
 
                     fig = px.bar(
                         long_df,
@@ -416,15 +418,11 @@ def main() -> None:
         summary_cols = ["施策番号", "ISS区分", "施策名", "部門", "担当者", "開発計画金額", "着地見込み額", "乖離", "乖離絶対値", "実績", "組替有無"]
         summary_df = df_f[summary_cols].sort_values("乖離絶対値", ascending=False).reset_index(drop=True)
     else:
-        if group_mode == "ISS区分":
-            group_cols = ["ISS区分"]
-        elif group_mode == "部門":
-            group_cols = ["部門"]
-        elif group_mode == "担当者":
-            group_cols = ["担当者"]
+        group_cols = GROUP_MAP.get(group_mode)
+        if group_cols:
+            summary_df = group_summary(df_f, group_cols, threshold)
         else:
-            group_cols = ["ISS区分", "部門"]
-        summary_df = group_summary(df_f, group_cols, threshold)
+            summary_df = pd.DataFrame()
 
     st.dataframe(summary_df, use_container_width=True, height=320)
 
