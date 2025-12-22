@@ -195,8 +195,8 @@ def monthly_series(df: pd.DataFrame) -> pd.DataFrame:
     else:
         # 実績列が存在しない場合は合計を均等割りして近似
         total_actual = pd.to_numeric(df["実績値合計"], errors="coerce").sum() if "実績値合計" in df.columns else 0
-        monthly_actual = total_actual / 12
-        actual = pd.Series([monthly_actual] * 12, index=ACTUAL_MONTH_COLS)
+        monthly_actual = total_actual / len(MONTHS)
+        actual = pd.Series([monthly_actual] * len(MONTHS), index=ACTUAL_MONTH_COLS)
 
     out = pd.DataFrame(
         {
