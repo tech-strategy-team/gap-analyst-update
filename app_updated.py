@@ -137,6 +137,43 @@ def group_summary(df: pd.DataFrame, group_cols: List[str], threshold: float) -> 
     return g
 
 
+def measure_summary(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    施策名が重複する場合に数値を合算したサマリを返します。
+    ISS区分/部門/担当者/組替有無などは代表値（先頭行）を採用します。
+    """
+    numeric_cols = [c for c in ["開発計画金額", "着地見込み額", "実績"] if c in df.columns]
+    representative_cols = [c for c in ["施策番号", "ISS区分", "部門", "担当者", "組替有無"] if c in df.columns]
+
+    agg_map: dict[str, str] = {c: "first" for c in representative_cols}
+    agg_map.update({c: "sum" for c in numeric_cols})
+
+    g = df.groupby("施策名", dropna=False).agg(agg_map).reset_index()
+
+    if "開発計画金額" in g.columns and "着地見込み額" in g.columns:
+        g["乖離"] = g["開発計画金額"].astype(float) - g["着地見込み額"].astype(float)
+        g["乖離絶対値"] = g["乖離"].abs()
+
+    ordered_cols = [
+        "施策番号",
+        "ISS区分",
+        "施策名",
+        "部門",
+        "担当者",
+        "開発計画金額",
+        "着地見込み額",
+        "乖離",
+        "乖離絶対値",
+        "実績",
+        "組替有無",
+    ]
+    existing_cols = [c for c in ordered_cols if c in g.columns]
+    g = g[existing_cols]
+
+    g = g.sort_values("乖離絶対値", ascending=False, na_position="last").reset_index(drop=True) if "乖離絶対値" in g.columns else g
+    return g
+
+
 def monthly_series(df: pd.DataFrame) -> pd.DataFrame:
     """選択スコープの月次累計を返します。"""
     dev = df[DEV_MONTH_COLS].apply(pd.to_numeric, errors="coerce").sum(axis=0)
@@ -415,9 +452,8 @@ def main() -> None:
     # -----------------------------
     st.subheader("概況サマリ")
     if group_mode == "施策単位":
-        # 施策単位は明細に近いので、重要列だけに整形
-        summary_cols = ["施策番号", "ISS区分", "施策名", "部門", "担当者", "開発計画金額", "着地見込み額", "乖離", "乖離絶対値", "実績", "組替有無"]
-        summary_df = df_f[summary_cols].sort_values("乖離絶対値", ascending=False).reset_index(drop=True)
+        # 施策名が重複する場合、数値を合算して表示
+        summary_df = measure_summary(df_f)
     else:
         group_cols = GROUP_MAP.get(group_mode)
         if group_cols:
