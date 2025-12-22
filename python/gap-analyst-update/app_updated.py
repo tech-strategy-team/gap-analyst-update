@@ -401,6 +401,7 @@ def main() -> None:
     df_investment_only = filter_investment_only(df_raw)
     if df_investment_only.empty:
         st.warning("'投資_リース' 列が『投資』のデータがありません。")
+        st.stop()
 
     df = add_derived_columns(df_investment_only)
 
