@@ -34,7 +34,9 @@ jobs:
           if (Test-Path dist) { Remove-Item -Recurse -Force dist }
           if (Test-Path build) { Remove-Item -Recurse -Force build }
 
-          pyinstaller app_updated.py --onefile --clean --name gap-analyst-update
+          pyinstaller app_updated.py --onefile --clean --name gap-analyst-update `
+            --hidden-import numpy `
+            --collect-submodules numpy
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
